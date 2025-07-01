@@ -7,79 +7,234 @@
 </head>
 <body>
   <div class="app">
+    <!-- Main Header -->
     <header class="header">
       <h1>StyleAgent</h1>
       <div class="header-actions">
-        <button class="btn-primary" id="addClothingBtn">Add Item</button>
-        <button class="btn-secondary" id="askAgentBtn">Ask Agent</button>
+        <button class="btn-ai" id="suggestOutfitBtn">🤖 AI Suggest</button>
+        <button class="btn-primary" id="addClothingBtn">+ Add Item</button>
       </div>
     </header>
 
-    <main class="main">
-      <aside class="sidebar">
-        <div class="filters">
-          <h3>Filters</h3>
-          <div class="filter-group">
-            <label>Category</label>
-            <select id="categoryFilter">
-              <option value="">All</option>
-              <option value="tops">Tops</option>
-              <option value="bottoms">Bottoms</option>
-              <option value="shoes">Shoes</option>
-              <option value="accessories">Accessories</option>
-            </select>
+    <!-- Tab Content Areas -->
+    <main class="main-content">
+      
+      <!-- Builder Tab Content -->
+      <section class="tab-content builder-page" id="builderPage">
+        <div class="page-header">
+          <h2>🎨 Outfit Builder</h2>
+          <p>Create and design new outfits</p>
+        </div>
+        <div class="builder-content">
+          <div class="outfit-canvas">
+            <div class="outfit-slot outfit-top">
+              <div class="slot-placeholder">
+                <span>👕</span>
+                <p>Select a top</p>
+              </div>
+            </div>
+            <div class="outfit-slot outfit-bottom">
+              <div class="slot-placeholder">
+                <span>👖</span>
+                <p>Select bottoms</p>
+              </div>
+            </div>
+            <div class="outfit-slot outfit-shoes">
+              <div class="slot-placeholder">
+                <span>👟</span>
+                <p>Select shoes</p>
+              </div>
+            </div>
           </div>
-          <div class="filter-group">
-            <label>Season</label>
-            <select id="seasonFilter">
-              <option value="">All</option>
-              <option value="spring">Spring</option>
-              <option value="summer">Summer</option>
-              <option value="fall">Fall</option>
-              <option value="winter">Winter</option>
-            </select>
+          <div class="builder-actions">
+            <button class="btn-primary" id="generateOutfitBtn">✨ Generate Outfit</button>
+            <button class="btn-secondary" id="saveOutfitBtn">💾 Save Outfit</button>
           </div>
         </div>
-      </aside>
+      </section>
 
-      <section class="wardrobe">
-        <div class="wardrobe-header">
-          <h2>Your Wardrobe</h2>
-          <div class="view-toggle">
-            <button class="view-btn active" data-view="grid">Grid</button>
-            <button class="view-btn" data-view="list">List</button>
+      <!-- Wardrobe Tab Content -->
+      <section class="tab-content wardrobe-page active" id="wardrobePage">
+        <div class="page-header">
+          <h2>👗 Your Wardrobe</h2>
+          <div class="wardrobe-stats">
+            <span class="stat-item" id="totalItems">0 items</span>
+            <span class="stat-item" id="cleanItems">0 clean</span>
+            <span class="stat-item" id="dirtyItems">0 dirty</span>
           </div>
         </div>
+        
+        <!-- Filters Bar -->
+        <div class="filters-bar">
+          <div class="filter-group">
+            <select id="categoryFilter">
+              <option value="">All Categories</option>
+              <option value="tops">👕 Tops</option>
+              <option value="bottoms">👖 Bottoms</option>
+              <option value="shoes">👟 Shoes</option>
+              <option value="accessories">👜 Accessories</option>
+              <option value="outerwear">🧥 Outerwear</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <select id="laundryFilter">
+              <option value="">All Status</option>
+              <option value="clean">🧽 Clean</option>
+              <option value="dirty">🧺 Dirty</option>
+              <option value="washing">🌀 Washing</option>
+            </select>
+          </div>
+          <div class="view-toggle">
+            <button class="view-btn active" data-view="grid">⊞</button>
+            <button class="view-btn" data-view="list">☰</button>
+          </div>
+        </div>
+
+        <!-- Clothing Grid -->
         <div class="clothing-grid" id="clothingGrid">
-          <!-- Clothing items will be populated here -->
-          <div class="clothing-item">
-            <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjI0MCIgdmlld0JveD0iMCAwIDIwMCAyNDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iMjQwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik04NS4zMzMzIDk2TDEwMCA4MC42NjY3TDExNC42NjcgOTZWMTEzLjMzM0g4NS4zMzMzVjk2WiIgZmlsbD0iIzlCA0EzQkYiLz4KPC9zdmc+" alt="Sample clothing item">
-            <div class="item-info">
-              <h4>Sample T-Shirt</h4>
-              <span class="category">Tops</span>
+          <!-- Items will be populated here -->
+        </div>
+      </section>
+
+      <!-- Outfits Tab Content -->
+      <section class="tab-content outfits-page" id="outfitsPage">
+        <div class="page-header">
+          <h2>💫 Your Outfits</h2>
+          <p>Saved outfits and favorites</p>
+        </div>
+        
+        <!-- Loved Outfits Section -->
+        <div class="loved-outfits-section">
+          <h3>❤️ Loved Outfits</h3>
+          <div class="loved-outfits-scroll" id="lovedOutfits">
+            <!-- Horizontal scrolling loved outfits -->
+          </div>
+        </div>
+
+        <!-- All Outfits Grid -->
+        <div class="all-outfits-section">
+          <h3>📸 All Outfits</h3>
+          <div class="outfits-grid" id="outfitsGrid">
+            <!-- Outfits grid -->
+          </div>
+        </div>
+      </section>
+
+      <!-- Profile Tab Content -->
+      <section class="tab-content profile-page" id="profilePage">
+        <div class="page-header">
+          <h2>👤 Profile & Analytics</h2>
+          <p>Your style insights and preferences</p>
+        </div>
+        
+        <div class="profile-content">
+          <div class="analytics-cards">
+            <div class="analytics-card">
+              <h4>📊 Wardrobe Analytics</h4>
+              <div class="analytics-stats">
+                <div class="stat">
+                  <span class="stat-number" id="totalWears">0</span>
+                  <span class="stat-label">Total Wears</span>
+                </div>
+                <div class="stat">
+                  <span class="stat-number" id="favoriteItems">0</span>
+                  <span class="stat-label">Favorites</span>
+                </div>
+                <div class="stat">
+                  <span class="stat-number" id="outfitCount">0</span>
+                  <span class="stat-label">Outfits</span>
+                </div>
+              </div>
+            </div>
+            
+            <div class="analytics-card">
+              <h4>🎨 Style Insights</h4>
+              <div class="color-palette" id="topColors">
+                <!-- Top colors will be displayed here -->
+              </div>
+              <div class="style-tags" id="styleTags">
+                <!-- Style preferences -->
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <h4>⚙️ Settings</h4>
+            <div class="setting-item">
+              <label>AI Model</label>
+              <select id="aiModelSelect">
+                <option value="tinyllama">🦙 TinyLlama (Local)</option>
+                <option value="openai">🧠 OpenAI GPT-4</option>
+              </select>
+            </div>
+            <div class="setting-item">
+              <label>Weather Location</label>
+              <input type="text" id="weatherLocation" placeholder="Enter city name">
             </div>
           </div>
         </div>
       </section>
+
     </main>
 
-    <div class="agent-panel" id="agentPanel" style="display: none;">
-      <div class="agent-header">
-        <h3>Style Agent</h3>
-        <button class="close-btn" id="closeAgentBtn">×</button>
-      </div>
-      <div class="agent-content">
-        <div class="conversation" id="conversation">
-          <div class="message agent-message">
-            <p>Hi! I'm your style agent. Ask me anything about your wardrobe or what to wear today!</p>
-          </div>
+    <!-- Bottom Navigation -->
+    <nav class="bottom-nav">
+      <button class="nav-item" data-tab="builder">
+        <span class="nav-icon">🎨</span>
+        <span class="nav-label">Builder</span>
+      </button>
+      <button class="nav-item active" data-tab="wardrobe">
+        <span class="nav-icon">👗</span>
+        <span class="nav-label">Wardrobe</span>
+      </button>
+      <button class="nav-item" data-tab="outfits">
+        <span class="nav-icon">💫</span>
+        <span class="nav-label">Outfits</span>
+      </button>
+      <button class="nav-item" data-tab="profile">
+        <span class="nav-icon">👤</span>
+        <span class="nav-label">Profile</span>
+      </button>
+    </nav>
+
+    <!-- Modals -->
+    
+    <!-- AI Chat Modal -->
+    <div class="modal ai-chat-modal" id="aiChatModal" style="display: none;">
+      <div class="modal-backdrop" id="aiChatBackdrop"></div>
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>🤖 Style Agent</h3>
+          <button class="close-btn" id="closeAiChatBtn">×</button>
         </div>
-        <div class="input-area">
-          <input type="text" id="agentInput" placeholder="Ask me about your style...">
-          <button id="sendBtn">Send</button>
+        <div class="modal-body">
+          <div class="conversation" id="conversation">
+            <div class="message agent-message">
+              <p>Hi! I'm your AI style agent. Ask me anything about your wardrobe or what to wear today! ✨</p>
+            </div>
+          </div>
+          <div class="input-area">
+            <input type="text" id="agentInput" placeholder="Ask me about your style...">
+            <button id="sendBtn">Send</button>
+          </div>
         </div>
       </div>
     </div>
+
+    <!-- Item Detail Modal -->
+    <div class="modal item-detail-modal" id="itemDetailModal" style="display: none;">
+      <div class="modal-backdrop" id="itemDetailBackdrop"></div>
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3 id="itemDetailTitle">Item Details</h3>
+          <button class="close-btn" id="closeItemDetailBtn">×</button>
+        </div>
+        <div class="modal-body" id="itemDetailBody">
+          <!-- Item details will be populated here -->
+        </div>
+      </div>
+    </div>
+
   </div>
 
   <script src="app.js"></script>

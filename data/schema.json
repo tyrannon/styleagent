@@ -1,0 +1,183 @@
+{
+  "clothingItem": {
+    "id": {
+      "type": "string",
+      "required": true,
+      "description": "Unique identifier for the clothing item"
+    },
+    "name": {
+      "type": "string",
+      "required": true,
+      "minLength": 1,
+      "maxLength": 100,
+      "description": "Display name of the clothing item"
+    },
+    "category": {
+      "type": "string",
+      "required": true,
+      "enum": ["tops", "bottoms", "shoes", "accessories", "outerwear", "underwear", "sleepwear", "activewear"],
+      "description": "Category classification of the item"
+    },
+    "subcategory": {
+      "type": "string",
+      "required": false,
+      "description": "More specific classification within the category"
+    },
+    "brand": {
+      "type": "string",
+      "required": false,
+      "maxLength": 50,
+      "description": "Brand name of the item"
+    },
+    "color": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "required": true,
+      "minItems": 1,
+      "description": "Primary and secondary colors of the item"
+    },
+    "size": {
+      "type": "string",
+      "required": false,
+      "description": "Size of the item (e.g., S, M, L, 32, 8.5)"
+    },
+    "material": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "required": false,
+      "description": "Materials the item is made from"
+    },
+    "season": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["spring", "summer", "fall", "winter"]
+      },
+      "required": false,
+      "description": "Seasons when the item is appropriate"
+    },
+    "occasion": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["casual", "business", "formal", "athletic", "loungewear", "party", "date", "work"]
+      },
+      "required": false,
+      "description": "Occasions when the item is appropriate"
+    },
+    "imageUrl": {
+      "type": "string",
+      "required": false,
+      "description": "Local file path or URL to the item's image"
+    },
+    "purchaseDate": {
+      "type": "string",
+      "format": "date",
+      "required": false,
+      "description": "Date when the item was purchased"
+    },
+    "purchasePrice": {
+      "type": "number",
+      "minimum": 0,
+      "required": false,
+      "description": "Purchase price of the item"
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "required": false,
+      "description": "Custom tags for the item"
+    },
+    "notes": {
+      "type": "string",
+      "required": false,
+      "maxLength": 500,
+      "description": "Additional notes about the item"
+    },
+    "condition": {
+      "type": "string",
+      "enum": ["excellent", "good", "fair", "poor"],
+      "required": false,
+      "default": "good",
+      "description": "Current condition of the item"
+    },
+    "favorite": {
+      "type": "boolean",
+      "required": false,
+      "default": false,
+      "description": "Whether the item is marked as favorite"
+    },
+    "timesWorn": {
+      "type": "number",
+      "minimum": 0,
+      "required": false,
+      "default": 0,
+      "description": "Number of times the item has been worn"
+    },
+    "lastWorn": {
+      "type": "string",
+      "format": "date",
+      "required": false,
+      "description": "Date when the item was last worn"
+    },
+    "retired": {
+      "type": "boolean",
+      "required": false,
+      "default": false,
+      "description": "Whether the item is retired from active use"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "datetime",
+      "required": true,
+      "description": "Timestamp when the item was added to the system"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "datetime",
+      "required": true,
+      "description": "Timestamp when the item was last updated"
+    }
+  },
+  "wardrobe": {
+    "metadata": {
+      "version": {
+        "type": "string",
+        "required": true,
+        "description": "Schema version"
+      },
+      "createdAt": {
+        "type": "string",
+        "format": "datetime",
+        "required": true,
+        "description": "Timestamp when the wardrobe was created"
+      },
+      "lastModified": {
+        "type": "string",
+        "format": "datetime",
+        "required": true,
+        "description": "Timestamp when the wardrobe was last modified"
+      },
+      "totalItems": {
+        "type": "number",
+        "minimum": 0,
+        "required": true,
+        "description": "Total number of items in the wardrobe"
+      }
+    },
+    "items": {
+      "type": "array",
+      "items": {
+        "$ref": "#/clothingItem"
+      },
+      "required": true,
+      "description": "Array of clothing items in the wardrobe"
+    }
+  }
+}

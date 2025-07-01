@@ -1,0 +1,371 @@
+{
+  "version": "1.0",
+  "lastUpdated": "2025-07-01T19:42:47.082Z",
+  "outfits": [
+    {
+      "id": "0a742852-df3c-4c8b-ae64-4f11e8151d62",
+      "name": "My Outfit - 7/1/2025",
+      "description": "Manually created outfit",
+      "items": [
+        "bc87df39-d9d1-4ebb-a9a1-d4aec597193c",
+        "0b2e5305-4463-413a-a30f-b77f69d9058f",
+        "5e3799e9-d8a4-4932-a62b-a9b59e2b7666",
+        null
+      ],
+      "itemDetails": [
+        {
+          "id": "bc87df39-d9d1-4ebb-a9a1-d4aec597193c",
+          "name": "White Cotton T-Shirt",
+          "category": "tops",
+          "brand": "Uniqlo",
+          "color": [
+            "white"
+          ],
+          "size": "M",
+          "material": [
+            "cotton"
+          ],
+          "season": [
+            "spring",
+            "summer"
+          ],
+          "occasion": [
+            "casual"
+          ],
+          "purchaseDate": null,
+          "purchasePrice": null,
+          "condition": "excellent",
+          "favorite": true,
+          "timesWorn": 0,
+          "lastWorn": null,
+          "tags": [
+            "basic",
+            "versatile"
+          ],
+          "notes": "",
+          "imagePath": null,
+          "createdAt": "2025-07-01T15:21:05.600Z",
+          "updatedAt": "2025-07-01T15:21:05.600Z"
+        },
+        {
+          "id": "0b2e5305-4463-413a-a30f-b77f69d9058f",
+          "name": "Dark Jeans",
+          "category": "bottoms",
+          "brand": "Levi's",
+          "color": [
+            "blue",
+            "dark"
+          ],
+          "size": "32",
+          "material": [
+            "denim",
+            "cotton"
+          ],
+          "season": [
+            "fall",
+            "winter",
+            "spring"
+          ],
+          "occasion": [
+            "casual",
+            "business-casual"
+          ],
+          "purchaseDate": null,
+          "purchasePrice": null,
+          "condition": "good",
+          "favorite": false,
+          "timesWorn": 0,
+          "lastWorn": null,
+          "tags": [
+            "classic",
+            "durable"
+          ],
+          "notes": "",
+          "imagePath": null,
+          "createdAt": "2025-07-01T15:24:51.556Z",
+          "updatedAt": "2025-07-01T15:24:51.556Z"
+        },
+        {
+          "id": "5e3799e9-d8a4-4932-a62b-a9b59e2b7666",
+          "name": "Sneakers",
+          "category": "shoes",
+          "brand": "Nike",
+          "color": [
+            "white",
+            "blue"
+          ],
+          "size": "10",
+          "material": [
+            "synthetic"
+          ],
+          "season": [
+            "spring",
+            "summer"
+          ],
+          "occasion": [
+            "casual",
+            "athletic"
+          ],
+          "purchaseDate": null,
+          "purchasePrice": null,
+          "condition": "good",
+          "favorite": false,
+          "timesWorn": 0,
+          "lastWorn": null,
+          "tags": [
+            "comfortable",
+            "athletic"
+          ],
+          "notes": "",
+          "imagePath": null,
+          "createdAt": "2025-07-01T15:19:29.255Z",
+          "updatedAt": "2025-07-01T16:47:06.284Z",
+          "laundryStatus": "dirty"
+        },
+        []
+      ],
+      "tags": [],
+      "occasion": "casual",
+      "season": "all",
+      "weather": "mild",
+      "loved": false,
+      "timesWorn": 0,
+      "lastWorn": null,
+      "image": "data:image/svg+xml;base64,CiAgICAgIDxzdmcgd2lkdGg9IjMwMCIgaGVpZ2h0PSI0MDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgICAgICAgPGRlZnM+CiAgICAgICAgICA8bGluZWFyR3JhZGllbnQgaWQ9ImJhY2tncm91bmRHcmFkaWVudCIgeDE9IjAlIiB5MT0iMCUiIHgyPSIxMDAlIiB5Mj0iMTAwJSI+CiAgICAgICAgICAgIDxzdG9wIG9mZnNldD0iMCUiIHN0eWxlPSJzdG9wLWNvbG9yOiNmOGZhZmM7c3RvcC1vcGFjaXR5OjEiIC8+CiAgICAgICAgICAgIDxzdG9wIG9mZnNldD0iMTAwJSIgc3R5bGU9InN0b3AtY29sb3I6I2UyZThmMDtzdG9wLW9wYWNpdHk6MSIgLz4KICAgICAgICAgIDwvbGluZWFyR3JhZGllbnQ+CiAgICAgICAgICA8ZmlsdGVyIGlkPSJzaGFkb3ciIHg9Ii0yMCUiIHk9Ii0yMCUiIHdpZHRoPSIxNDAlIiBoZWlnaHQ9IjE0MCUiPgogICAgICAgICAgICA8ZmVEcm9wU2hhZG93IGR4PSIyIiBkeT0iMiIgc3RkRGV2aWF0aW9uPSIzIiBmbG9vZC1jb2xvcj0icmdiYSgwLDAsMCwwLjEpIi8+CiAgICAgICAgICA8L2ZpbHRlcj4KICAgICAgICA8L2RlZnM+CiAgICAgICAgCiAgICAgICAgPCEtLSBCYWNrZ3JvdW5kIC0tPgogICAgICAgIDxyZWN0IHdpZHRoPSIzMDAiIGhlaWdodD0iNDAwIiBmaWxsPSJ1cmwoI2JhY2tncm91bmRHcmFkaWVudCkiLz4KICAgICAgICAKICAgICAgICA8IS0tIEJvZHkgb3V0bGluZSAoc3VidGxlKSAtLT4KICAgICAgICA8ZWxsaXBzZSBjeD0iMTUwIiBjeT0iMTIwIiByeD0iNDUiIHJ5PSI2MCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZTJlOGYwIiBzdHJva2Utd2lkdGg9IjEiIHN0cm9rZS1kYXNoYXJyYXk9IjMsMyIvPgogICAgCiAgICAgIDxnIGZpbHRlcj0idXJsKCNzaGFkb3cpIj4KICAgICAgICA8IS0tIFRvcC9TaGlydCAtLT4KICAgICAgICA8cGF0aCBkPSJNIDEyMCAxMDAgUSAxMjAgOTUgMTI1IDk1IEwgMTc1IDk1IFEgMTgwIDk1IDE4MCAxMDAgTCAxODAgMTYwIFEgMTgwIDE2NSAxNzUgMTY1IEwgMTI1IDE2NSBRIDEyMCAxNjUgMTIwIDE2MCBaIiAKICAgICAgICAgICAgICBmaWxsPSIjZmZmZmZmIiBzdHJva2U9IiMzMzMiIHN0cm9rZS13aWR0aD0iMSIvPgogICAgICAgIAogICAgICAgIDwhLS0gU2xlZXZlcyAtLT4KICAgICAgICA8ZWxsaXBzZSBjeD0iMTEwIiBjeT0iMTE1IiByeD0iMTIiIHJ5PSIyNSIgZmlsbD0iI2ZmZmZmZiIgc3Ryb2tlPSIjMzMzIiBzdHJva2Utd2lkdGg9IjEiLz4KICAgICAgICA8ZWxsaXBzZSBjeD0iMTkwIiBjeT0iMTE1IiByeD0iMTIiIHJ5PSIyNSIgZmlsbD0iI2ZmZmZmZiIgc3Ryb2tlPSIjMzMzIiBzdHJva2Utd2lkdGg9IjEiLz4KICAgICAgICAKICAgICAgICAKICAgICAgICAKICAgICAgICA8IS0tIENvbGxhciAtLT4KICAgICAgICA8cGF0aCBkPSJNIDE0MCA5NSBRIDE1MCA5MCAxNjAgOTUiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzMzMyIgc3Ryb2tlLXdpZHRoPSIxIi8+CiAgICAgIDwvZz4KICAgIAogICAgICAgIDxnIGZpbHRlcj0idXJsKCNzaGFkb3cpIj4KICAgICAgICAgIDwhLS0gUGFudHMvSmVhbnMgLS0+CiAgICAgICAgICA8cmVjdCB4PSIxMjUiIHk9IjE2NSIgd2lkdGg9IjUwIiBoZWlnaHQ9IjEyMCIgcng9IjUiIGZpbGw9IiMzYjgyZjYiIHN0cm9rZT0iIzMzMyIgc3Ryb2tlLXdpZHRoPSIxIi8+CiAgICAgICAgICAKICAgICAgICAgIDwhLS0gTGVmdCBsZWcgLS0+CiAgICAgICAgICA8cmVjdCB4PSIxMjUiIHk9IjIwMCIgd2lkdGg9IjIyIiBoZWlnaHQ9Ijg1IiByeD0iMyIgZmlsbD0iIzNiODJmNiIgc3Ryb2tlPSIjMzMzIiBzdHJva2Utd2lkdGg9IjEiLz4KICAgICAgICAgIAogICAgICAgICAgPCEtLSBSaWdodCBsZWcgLS0+CiAgICAgICAgICA8cmVjdCB4PSIxNTMiIHk9IjIwMCIgd2lkdGg9IjIyIiBoZWlnaHQ9Ijg1IiByeD0iMyIgZmlsbD0iIzNiODJmNiIgc3Ryb2tlPSIjMzMzIiBzdHJva2Utd2lkdGg9IjEiLz4KICAgICAgICAgIAogICAgICAgICAgCiAgICAgIDxnIG9wYWNpdHk9IjAuNiI+CiAgICAgICAgPCEtLSBEZW5pbSBzdGl0Y2hpbmcgLS0+CiAgICAgICAgPGxpbmUgeDE9IjEzMCIgeTE9IjE3MCIgeDI9IjE3MCIgeTI9IjE3MCIgc3Ryb2tlPSIjZjU5ZTBiIiBzdHJva2Utd2lkdGg9IjAuNSIvPgogICAgICAgIDxsaW5lIHgxPSIxMzUiIHkxPSIyMDAiIHgyPSIxNDAiIHkyPSIyODAiIHN0cm9rZT0iI2Y1OWUwYiIgc3Ryb2tlLXdpZHRoPSIwLjUiLz4KICAgICAgICA8bGluZSB4MT0iMTYwIiB5MT0iMjAwIiB4Mj0iMTY1IiB5Mj0iMjgwIiBzdHJva2U9IiNmNTllMGIiIHN0cm9rZS13aWR0aD0iMC41Ii8+CiAgICAgICAgCiAgICAgICAgPCEtLSBQb2NrZXQgLS0+CiAgICAgICAgPHJlY3QgeD0iMTU1IiB5PSIxNzUiIHdpZHRoPSIxMiIgaGVpZ2h0PSIxNSIgcng9IjIiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2Y1OWUwYiIgc3Ryb2tlLXdpZHRoPSIwLjUiLz4KICAgICAgPC9nPgogICAgCiAgICAgICAgPC9nPgogICAgICAKICAgICAgICA8ZyBmaWx0ZXI9InVybCgjc2hhZG93KSI+CiAgICAgICAgICA8IS0tIFNuZWFrZXJzIC0tPgogICAgICAgICAgPGVsbGlwc2UgY3g9IjEzOCIgY3k9IjI5NSIgcng9IjE4IiByeT0iMTIiIGZpbGw9IiNmZmZmZmYiIHN0cm9rZT0iIzMzMyIgc3Ryb2tlLXdpZHRoPSIxIi8+CiAgICAgICAgICA8ZWxsaXBzZSBjeD0iMTYyIiBjeT0iMjk1IiByeD0iMTgiIHJ5PSIxMiIgZmlsbD0iI2ZmZmZmZiIgc3Ryb2tlPSIjMzMzIiBzdHJva2Utd2lkdGg9IjEiLz4KICAgICAgICAgIAogICAgICAgICAgPCEtLSBTbmVha2VyIHNvbGVzIC0tPgogICAgICAgICAgPGVsbGlwc2UgY3g9IjEzOCIgY3k9IjMwMCIgcng9IjIwIiByeT0iOCIgZmlsbD0iI2ZmZmZmZiIgc3Ryb2tlPSIjMzMzIiBzdHJva2Utd2lkdGg9IjEiLz4KICAgICAgICAgIDxlbGxpcHNlIGN4PSIxNjIiIGN5PSIzMDAiIHJ4PSIyMCIgcnk9IjgiIGZpbGw9IiNmZmZmZmYiIHN0cm9rZT0iIzMzMyIgc3Ryb2tlLXdpZHRoPSIxIi8+CiAgICAgICAgICAKICAgICAgICAgIDwhLS0gTGFjZXMgLS0+CiAgICAgICAgICA8bGluZSB4MT0iMTMyIiB5MT0iMjkwIiB4Mj0iMTQ0IiB5Mj0iMjkwIiBzdHJva2U9IiMzMzMiIHN0cm9rZS13aWR0aD0iMSIvPgogICAgICAgICAgPGxpbmUgeDE9IjE1NiIgeTE9IjI5MCIgeDI9IjE2OCIgeTI9IjI5MCIgc3Ryb2tlPSIjMzMzIiBzdHJva2Utd2lkdGg9IjEiLz4KICAgICAgICA8L2c+CiAgICAgIAogICAgICA8ZyBvcGFjaXR5PSIwLjgiPgogICAgICAgIDxyZWN0IHg9IjEwIiB5PSIzMjAiIHdpZHRoPSIyODAiIGhlaWdodD0iNzAiIHJ4PSI4IiBmaWxsPSJyZ2JhKDI1NSwyNTUsMjU1LDAuOSkiIHN0cm9rZT0iI2UyZThmMCIvPgogICAgICAgIDx0ZXh0IHg9IjIwIiB5PSIzNDAiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxMiIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiMzNzQxNTEiPgogICAgICAgICAgT3V0Zml0IENvbXBvbmVudHM6CiAgICAgICAgPC90ZXh0PgogICAgCiAgICAgICAgICA8dGV4dCB4PSIyMCIgeT0iMzU1IiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTAiIGZpbGw9IiM2YjcyODAiPgogICAgICAgICAgICDwn5GVIFdoaXRlIENvdHRvbiBULVNoaXJ0IC0gd2hpdGUKICAgICAgICAgIDwvdGV4dD4KICAgICAgICAKICAgICAgICAgIDx0ZXh0IHg9IjIwIiB5PSIzNjciIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxMCIgZmlsbD0iIzZiNzI4MCI+CiAgICAgICAgICAgIPCfkZYgRGFyayBKZWFucyAtIGJsdWUsIGRhcmsKICAgICAgICAgIDwvdGV4dD4KICAgICAgICAKICAgICAgICAgIDx0ZXh0IHg9IjIwIiB5PSIzNzkiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxMCIgZmlsbD0iIzZiNzI4MCI+CiAgICAgICAgICAgIPCfkZ8gU25lYWtlcnMgLSB3aGl0ZSwgYmx1ZQogICAgICAgICAgPC90ZXh0PgogICAgICAgIAogICAgICAgICAgPHRleHQgeD0iMjAiIHk9IjM5MSIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjEwIiBmaWxsPSIjNmI3MjgwIj4KICAgICAgICAgICAg8J+RlCBVbm5hbWVkIGl0ZW0gLSBObyBjb2xvcgogICAgICAgICAgPC90ZXh0PgogICAgICAgIDwvZz48L3N2Zz4=",
+      "aiGenerated": false,
+      "aiModel": null,
+      "createdAt": "2025-07-01T19:40:31.351Z",
+      "updatedAt": "2025-07-01T19:40:31.352Z"
+    },
+    {
+      "id": "485639ed-b987-45b1-b08b-faf936f1848f",
+      "name": "My Outfit - 7/1/2025",
+      "description": "Manually created outfit",
+      "items": [
+        "bc87df39-d9d1-4ebb-a9a1-d4aec597193c",
+        "67e2d93b-f52d-41db-b977-5e8da8b7c323",
+        null
+      ],
+      "itemDetails": [
+        {
+          "id": "bc87df39-d9d1-4ebb-a9a1-d4aec597193c",
+          "name": "White Cotton T-Shirt",
+          "category": "tops",
+          "brand": "Uniqlo",
+          "color": [
+            "white"
+          ],
+          "size": "M",
+          "material": [
+            "cotton"
+          ],
+          "season": [
+            "spring",
+            "summer"
+          ],
+          "occasion": [
+            "casual"
+          ],
+          "purchaseDate": null,
+          "purchasePrice": null,
+          "condition": "excellent",
+          "favorite": true,
+          "timesWorn": 0,
+          "lastWorn": null,
+          "tags": [
+            "basic",
+            "versatile"
+          ],
+          "notes": "",
+          "imagePath": null,
+          "createdAt": "2025-07-01T15:21:05.600Z",
+          "updatedAt": "2025-07-01T15:21:05.600Z"
+        },
+        {
+          "id": "67e2d93b-f52d-41db-b977-5e8da8b7c323",
+          "name": "Dark Jeans",
+          "category": "bottoms",
+          "brand": "Levi's",
+          "color": [
+            "blue",
+            "dark"
+          ],
+          "size": "32",
+          "material": [
+            "denim",
+            "cotton"
+          ],
+          "season": [
+            "fall",
+            "winter",
+            "spring"
+          ],
+          "occasion": [
+            "casual",
+            "business-casual"
+          ],
+          "purchaseDate": null,
+          "purchasePrice": null,
+          "condition": "good",
+          "favorite": false,
+          "timesWorn": 0,
+          "lastWorn": null,
+          "tags": [
+            "classic",
+            "durable"
+          ],
+          "notes": "",
+          "imagePath": null,
+          "createdAt": "2025-07-01T15:21:05.602Z",
+          "updatedAt": "2025-07-01T15:21:05.602Z"
+        },
+        []
+      ],
+      "tags": [],
+      "occasion": "casual",
+      "season": "all",
+      "weather": "mild",
+      "loved": false,
+      "timesWorn": 0,
+      "lastWorn": null,
+      "image": "data:image/svg+xml;base64,CiAgICAgIDxzdmcgd2lkdGg9IjMwMCIgaGVpZ2h0PSI0MDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgICAgICAgPGRlZnM+CiAgICAgICAgICA8bGluZWFyR3JhZGllbnQgaWQ9ImJhY2tncm91bmRHcmFkaWVudCIgeDE9IjAlIiB5MT0iMCUiIHgyPSIxMDAlIiB5Mj0iMTAwJSI+CiAgICAgICAgICAgIDxzdG9wIG9mZnNldD0iMCUiIHN0eWxlPSJzdG9wLWNvbG9yOiNmOGZhZmM7c3RvcC1vcGFjaXR5OjEiIC8+CiAgICAgICAgICAgIDxzdG9wIG9mZnNldD0iMTAwJSIgc3R5bGU9InN0b3AtY29sb3I6I2UyZThmMDtzdG9wLW9wYWNpdHk6MSIgLz4KICAgICAgICAgIDwvbGluZWFyR3JhZGllbnQ+CiAgICAgICAgICA8ZmlsdGVyIGlkPSJzaGFkb3ciIHg9Ii0yMCUiIHk9Ii0yMCUiIHdpZHRoPSIxNDAlIiBoZWlnaHQ9IjE0MCUiPgogICAgICAgICAgICA8ZmVEcm9wU2hhZG93IGR4PSIyIiBkeT0iMiIgc3RkRGV2aWF0aW9uPSIzIiBmbG9vZC1jb2xvcj0icmdiYSgwLDAsMCwwLjEpIi8+CiAgICAgICAgICA8L2ZpbHRlcj4KICAgICAgICA8L2RlZnM+CiAgICAgICAgCiAgICAgICAgPCEtLSBCYWNrZ3JvdW5kIC0tPgogICAgICAgIDxyZWN0IHdpZHRoPSIzMDAiIGhlaWdodD0iNDAwIiBmaWxsPSJ1cmwoI2JhY2tncm91bmRHcmFkaWVudCkiLz4KICAgICAgICAKICAgICAgICA8IS0tIEJvZHkgb3V0bGluZSAoc3VidGxlKSAtLT4KICAgICAgICA8ZWxsaXBzZSBjeD0iMTUwIiBjeT0iMTIwIiByeD0iNDUiIHJ5PSI2MCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZTJlOGYwIiBzdHJva2Utd2lkdGg9IjEiIHN0cm9rZS1kYXNoYXJyYXk9IjMsMyIvPgogICAgCiAgICAgIDxnIGZpbHRlcj0idXJsKCNzaGFkb3cpIj4KICAgICAgICA8IS0tIFRvcC9TaGlydCAtLT4KICAgICAgICA8cGF0aCBkPSJNIDEyMCAxMDAgUSAxMjAgOTUgMTI1IDk1IEwgMTc1IDk1IFEgMTgwIDk1IDE4MCAxMDAgTCAxODAgMTYwIFEgMTgwIDE2NSAxNzUgMTY1IEwgMTI1IDE2NSBRIDEyMCAxNjUgMTIwIDE2MCBaIiAKICAgICAgICAgICAgICBmaWxsPSIjZmZmZmZmIiBzdHJva2U9IiMzMzMiIHN0cm9rZS13aWR0aD0iMSIvPgogICAgICAgIAogICAgICAgIDwhLS0gU2xlZXZlcyAtLT4KICAgICAgICA8ZWxsaXBzZSBjeD0iMTEwIiBjeT0iMTE1IiByeD0iMTIiIHJ5PSIyNSIgZmlsbD0iI2ZmZmZmZiIgc3Ryb2tlPSIjMzMzIiBzdHJva2Utd2lkdGg9IjEiLz4KICAgICAgICA8ZWxsaXBzZSBjeD0iMTkwIiBjeT0iMTE1IiByeD0iMTIiIHJ5PSIyNSIgZmlsbD0iI2ZmZmZmZiIgc3Ryb2tlPSIjMzMzIiBzdHJva2Utd2lkdGg9IjEiLz4KICAgICAgICAKICAgICAgICAKICAgICAgICAKICAgICAgICA8IS0tIENvbGxhciAtLT4KICAgICAgICA8cGF0aCBkPSJNIDE0MCA5NSBRIDE1MCA5MCAxNjAgOTUiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzMzMyIgc3Ryb2tlLXdpZHRoPSIxIi8+CiAgICAgIDwvZz4KICAgIAogICAgICAgIDxnIGZpbHRlcj0idXJsKCNzaGFkb3cpIj4KICAgICAgICAgIDwhLS0gUGFudHMvSmVhbnMgLS0+CiAgICAgICAgICA8cmVjdCB4PSIxMjUiIHk9IjE2NSIgd2lkdGg9IjUwIiBoZWlnaHQ9IjEyMCIgcng9IjUiIGZpbGw9IiMzYjgyZjYiIHN0cm9rZT0iIzMzMyIgc3Ryb2tlLXdpZHRoPSIxIi8+CiAgICAgICAgICAKICAgICAgICAgIDwhLS0gTGVmdCBsZWcgLS0+CiAgICAgICAgICA8cmVjdCB4PSIxMjUiIHk9IjIwMCIgd2lkdGg9IjIyIiBoZWlnaHQ9Ijg1IiByeD0iMyIgZmlsbD0iIzNiODJmNiIgc3Ryb2tlPSIjMzMzIiBzdHJva2Utd2lkdGg9IjEiLz4KICAgICAgICAgIAogICAgICAgICAgPCEtLSBSaWdodCBsZWcgLS0+CiAgICAgICAgICA8cmVjdCB4PSIxNTMiIHk9IjIwMCIgd2lkdGg9IjIyIiBoZWlnaHQ9Ijg1IiByeD0iMyIgZmlsbD0iIzNiODJmNiIgc3Ryb2tlPSIjMzMzIiBzdHJva2Utd2lkdGg9IjEiLz4KICAgICAgICAgIAogICAgICAgICAgCiAgICAgIDxnIG9wYWNpdHk9IjAuNiI+CiAgICAgICAgPCEtLSBEZW5pbSBzdGl0Y2hpbmcgLS0+CiAgICAgICAgPGxpbmUgeDE9IjEzMCIgeTE9IjE3MCIgeDI9IjE3MCIgeTI9IjE3MCIgc3Ryb2tlPSIjZjU5ZTBiIiBzdHJva2Utd2lkdGg9IjAuNSIvPgogICAgICAgIDxsaW5lIHgxPSIxMzUiIHkxPSIyMDAiIHgyPSIxNDAiIHkyPSIyODAiIHN0cm9rZT0iI2Y1OWUwYiIgc3Ryb2tlLXdpZHRoPSIwLjUiLz4KICAgICAgICA8bGluZSB4MT0iMTYwIiB5MT0iMjAwIiB4Mj0iMTY1IiB5Mj0iMjgwIiBzdHJva2U9IiNmNTllMGIiIHN0cm9rZS13aWR0aD0iMC41Ii8+CiAgICAgICAgCiAgICAgICAgPCEtLSBQb2NrZXQgLS0+CiAgICAgICAgPHJlY3QgeD0iMTU1IiB5PSIxNzUiIHdpZHRoPSIxMiIgaGVpZ2h0PSIxNSIgcng9IjIiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2Y1OWUwYiIgc3Ryb2tlLXdpZHRoPSIwLjUiLz4KICAgICAgPC9nPgogICAgCiAgICAgICAgPC9nPgogICAgICAKICAgICAgPGcgb3BhY2l0eT0iMC44Ij4KICAgICAgICA8cmVjdCB4PSIxMCIgeT0iMzIwIiB3aWR0aD0iMjgwIiBoZWlnaHQ9IjcwIiByeD0iOCIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwwLjkpIiBzdHJva2U9IiNlMmU4ZjAiLz4KICAgICAgICA8dGV4dCB4PSIyMCIgeT0iMzQwIiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTIiIGZvbnQtd2VpZ2h0PSJib2xkIiBmaWxsPSIjMzc0MTUxIj4KICAgICAgICAgIE91dGZpdCBDb21wb25lbnRzOgogICAgICAgIDwvdGV4dD4KICAgIAogICAgICAgICAgPHRleHQgeD0iMjAiIHk9IjM1NSIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjEwIiBmaWxsPSIjNmI3MjgwIj4KICAgICAgICAgICAg8J+RlSBXaGl0ZSBDb3R0b24gVC1TaGlydCAtIHdoaXRlCiAgICAgICAgICA8L3RleHQ+CiAgICAgICAgCiAgICAgICAgICA8dGV4dCB4PSIyMCIgeT0iMzY3IiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTAiIGZpbGw9IiM2YjcyODAiPgogICAgICAgICAgICDwn5GWIERhcmsgSmVhbnMgLSBibHVlLCBkYXJrCiAgICAgICAgICA8L3RleHQ+CiAgICAgICAgCiAgICAgICAgICA8dGV4dCB4PSIyMCIgeT0iMzc5IiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTAiIGZpbGw9IiM2YjcyODAiPgogICAgICAgICAgICDwn5GUIFVubmFtZWQgaXRlbSAtIE5vIGNvbG9yCiAgICAgICAgICA8L3RleHQ+CiAgICAgICAgPC9nPjwvc3ZnPg==",
+      "aiGenerated": false,
+      "aiModel": null,
+      "createdAt": "2025-07-01T19:42:25.695Z",
+      "updatedAt": "2025-07-01T19:42:25.695Z"
+    },
+    {
+      "id": "85db01ff-2966-4bdb-b38b-70150b1fd10c",
+      "name": "My Outfit - 7/1/2025",
+      "description": "Manually created outfit",
+      "items": [
+        "414d0467-a5d5-40ad-8cd4-7d2fa14c34b2",
+        "3725d221-734f-4f4d-9c6e-8a44ba61a513",
+        "c2dbbf45-1aab-4195-a722-ad3e1a8c068d",
+        null
+      ],
+      "itemDetails": [
+        {
+          "id": "414d0467-a5d5-40ad-8cd4-7d2fa14c34b2",
+          "name": "White Cotton T-Shirt",
+          "category": "tops",
+          "brand": "Uniqlo",
+          "color": [
+            "white"
+          ],
+          "size": "M",
+          "material": [
+            "cotton"
+          ],
+          "season": [
+            "spring",
+            "summer"
+          ],
+          "occasion": [
+            "casual"
+          ],
+          "purchaseDate": null,
+          "purchasePrice": null,
+          "condition": "excellent",
+          "favorite": true,
+          "timesWorn": 0,
+          "lastWorn": null,
+          "tags": [
+            "basic",
+            "versatile"
+          ],
+          "notes": "",
+          "imagePath": null,
+          "createdAt": "2025-07-01T15:24:51.551Z",
+          "updatedAt": "2025-07-01T15:24:51.554Z"
+        },
+        {
+          "id": "3725d221-734f-4f4d-9c6e-8a44ba61a513",
+          "name": "Dark Jeans",
+          "category": "bottoms",
+          "brand": "Levi's",
+          "color": [
+            "blue",
+            "dark"
+          ],
+          "size": "32",
+          "material": [
+            "denim",
+            "cotton"
+          ],
+          "season": [
+            "fall",
+            "winter",
+            "spring"
+          ],
+          "occasion": [
+            "casual",
+            "business-casual"
+          ],
+          "purchaseDate": null,
+          "purchasePrice": null,
+          "condition": "good",
+          "favorite": false,
+          "timesWorn": 0,
+          "lastWorn": null,
+          "tags": [
+            "classic",
+            "durable"
+          ],
+          "notes": "",
+          "imagePath": null,
+          "createdAt": "2025-07-01T15:19:42.582Z",
+          "updatedAt": "2025-07-01T15:19:42.582Z"
+        },
+        {
+          "id": "c2dbbf45-1aab-4195-a722-ad3e1a8c068d",
+          "name": "Black Leather Boots",
+          "category": "shoes",
+          "brand": "Dr. Martens",
+          "color": [
+            "black"
+          ],
+          "size": "10",
+          "material": [
+            "leather"
+          ],
+          "season": [
+            "fall",
+            "winter"
+          ],
+          "occasion": [
+            "casual",
+            "business-casual"
+          ],
+          "purchaseDate": null,
+          "purchasePrice": null,
+          "condition": "excellent",
+          "favorite": true,
+          "timesWorn": 0,
+          "lastWorn": null,
+          "tags": [
+            "durable",
+            "edgy"
+          ],
+          "notes": "",
+          "imagePath": null,
+          "createdAt": "2025-07-01T15:19:42.584Z",
+          "updatedAt": "2025-07-01T15:19:42.584Z"
+        },
+        []
+      ],
+      "tags": [],
+      "occasion": "casual",
+      "season": "all",
+      "weather": "mild",
+      "loved": false,
+      "timesWorn": 0,
+      "lastWorn": null,
+      "image": "data:image/svg+xml;base64,CiAgICAgIDxzdmcgd2lkdGg9IjMwMCIgaGVpZ2h0PSI0MDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgICAgICAgPGRlZnM+CiAgICAgICAgICA8bGluZWFyR3JhZGllbnQgaWQ9ImJhY2tncm91bmRHcmFkaWVudCIgeDE9IjAlIiB5MT0iMCUiIHgyPSIxMDAlIiB5Mj0iMTAwJSI+CiAgICAgICAgICAgIDxzdG9wIG9mZnNldD0iMCUiIHN0eWxlPSJzdG9wLWNvbG9yOiNmOGZhZmM7c3RvcC1vcGFjaXR5OjEiIC8+CiAgICAgICAgICAgIDxzdG9wIG9mZnNldD0iMTAwJSIgc3R5bGU9InN0b3AtY29sb3I6I2UyZThmMDtzdG9wLW9wYWNpdHk6MSIgLz4KICAgICAgICAgIDwvbGluZWFyR3JhZGllbnQ+CiAgICAgICAgICA8ZmlsdGVyIGlkPSJzaGFkb3ciIHg9Ii0yMCUiIHk9Ii0yMCUiIHdpZHRoPSIxNDAlIiBoZWlnaHQ9IjE0MCUiPgogICAgICAgICAgICA8ZmVEcm9wU2hhZG93IGR4PSIyIiBkeT0iMiIgc3RkRGV2aWF0aW9uPSIzIiBmbG9vZC1jb2xvcj0icmdiYSgwLDAsMCwwLjEpIi8+CiAgICAgICAgICA8L2ZpbHRlcj4KICAgICAgICA8L2RlZnM+CiAgICAgICAgCiAgICAgICAgPCEtLSBCYWNrZ3JvdW5kIC0tPgogICAgICAgIDxyZWN0IHdpZHRoPSIzMDAiIGhlaWdodD0iNDAwIiBmaWxsPSJ1cmwoI2JhY2tncm91bmRHcmFkaWVudCkiLz4KICAgICAgICAKICAgICAgICA8IS0tIEJvZHkgb3V0bGluZSAoc3VidGxlKSAtLT4KICAgICAgICA8ZWxsaXBzZSBjeD0iMTUwIiBjeT0iMTIwIiByeD0iNDUiIHJ5PSI2MCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZTJlOGYwIiBzdHJva2Utd2lkdGg9IjEiIHN0cm9rZS1kYXNoYXJyYXk9IjMsMyIvPgogICAgCiAgICAgIDxnIGZpbHRlcj0idXJsKCNzaGFkb3cpIj4KICAgICAgICA8IS0tIFRvcC9TaGlydCAtLT4KICAgICAgICA8cGF0aCBkPSJNIDEyMCAxMDAgUSAxMjAgOTUgMTI1IDk1IEwgMTc1IDk1IFEgMTgwIDk1IDE4MCAxMDAgTCAxODAgMTYwIFEgMTgwIDE2NSAxNzUgMTY1IEwgMTI1IDE2NSBRIDEyMCAxNjUgMTIwIDE2MCBaIiAKICAgICAgICAgICAgICBmaWxsPSIjZmZmZmZmIiBzdHJva2U9IiMzMzMiIHN0cm9rZS13aWR0aD0iMSIvPgogICAgICAgIAogICAgICAgIDwhLS0gU2xlZXZlcyAtLT4KICAgICAgICA8ZWxsaXBzZSBjeD0iMTEwIiBjeT0iMTE1IiByeD0iMTIiIHJ5PSIyNSIgZmlsbD0iI2ZmZmZmZiIgc3Ryb2tlPSIjMzMzIiBzdHJva2Utd2lkdGg9IjEiLz4KICAgICAgICA8ZWxsaXBzZSBjeD0iMTkwIiBjeT0iMTE1IiByeD0iMTIiIHJ5PSIyNSIgZmlsbD0iI2ZmZmZmZiIgc3Ryb2tlPSIjMzMzIiBzdHJva2Utd2lkdGg9IjEiLz4KICAgICAgICAKICAgICAgICAKICAgICAgICAKICAgICAgICA8IS0tIENvbGxhciAtLT4KICAgICAgICA8cGF0aCBkPSJNIDE0MCA5NSBRIDE1MCA5MCAxNjAgOTUiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzMzMyIgc3Ryb2tlLXdpZHRoPSIxIi8+CiAgICAgIDwvZz4KICAgIAogICAgICAgIDxnIGZpbHRlcj0idXJsKCNzaGFkb3cpIj4KICAgICAgICAgIDwhLS0gUGFudHMvSmVhbnMgLS0+CiAgICAgICAgICA8cmVjdCB4PSIxMjUiIHk9IjE2NSIgd2lkdGg9IjUwIiBoZWlnaHQ9IjEyMCIgcng9IjUiIGZpbGw9IiMzYjgyZjYiIHN0cm9rZT0iIzMzMyIgc3Ryb2tlLXdpZHRoPSIxIi8+CiAgICAgICAgICAKICAgICAgICAgIDwhLS0gTGVmdCBsZWcgLS0+CiAgICAgICAgICA8cmVjdCB4PSIxMjUiIHk9IjIwMCIgd2lkdGg9IjIyIiBoZWlnaHQ9Ijg1IiByeD0iMyIgZmlsbD0iIzNiODJmNiIgc3Ryb2tlPSIjMzMzIiBzdHJva2Utd2lkdGg9IjEiLz4KICAgICAgICAgIAogICAgICAgICAgPCEtLSBSaWdodCBsZWcgLS0+CiAgICAgICAgICA8cmVjdCB4PSIxNTMiIHk9IjIwMCIgd2lkdGg9IjIyIiBoZWlnaHQ9Ijg1IiByeD0iMyIgZmlsbD0iIzNiODJmNiIgc3Ryb2tlPSIjMzMzIiBzdHJva2Utd2lkdGg9IjEiLz4KICAgICAgICAgIAogICAgICAgICAgCiAgICAgIDxnIG9wYWNpdHk9IjAuNiI+CiAgICAgICAgPCEtLSBEZW5pbSBzdGl0Y2hpbmcgLS0+CiAgICAgICAgPGxpbmUgeDE9IjEzMCIgeTE9IjE3MCIgeDI9IjE3MCIgeTI9IjE3MCIgc3Ryb2tlPSIjZjU5ZTBiIiBzdHJva2Utd2lkdGg9IjAuNSIvPgogICAgICAgIDxsaW5lIHgxPSIxMzUiIHkxPSIyMDAiIHgyPSIxNDAiIHkyPSIyODAiIHN0cm9rZT0iI2Y1OWUwYiIgc3Ryb2tlLXdpZHRoPSIwLjUiLz4KICAgICAgICA8bGluZSB4MT0iMTYwIiB5MT0iMjAwIiB4Mj0iMTY1IiB5Mj0iMjgwIiBzdHJva2U9IiNmNTllMGIiIHN0cm9rZS13aWR0aD0iMC41Ii8+CiAgICAgICAgCiAgICAgICAgPCEtLSBQb2NrZXQgLS0+CiAgICAgICAgPHJlY3QgeD0iMTU1IiB5PSIxNzUiIHdpZHRoPSIxMiIgaGVpZ2h0PSIxNSIgcng9IjIiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2Y1OWUwYiIgc3Ryb2tlLXdpZHRoPSIwLjUiLz4KICAgICAgPC9nPgogICAgCiAgICAgICAgPC9nPgogICAgICAKICAgICAgICA8ZyBmaWx0ZXI9InVybCgjc2hhZG93KSI+CiAgICAgICAgICA8IS0tIEJvb3RzIC0tPgogICAgICAgICAgPGVsbGlwc2UgY3g9IjEzOCIgY3k9IjMwMCIgcng9IjE1IiByeT0iMjAiIGZpbGw9IiMwMDAwMDAiIHN0cm9rZT0iIzMzMyIgc3Ryb2tlLXdpZHRoPSIxIi8+CiAgICAgICAgICA8ZWxsaXBzZSBjeD0iMTYyIiBjeT0iMzAwIiByeD0iMTUiIHJ5PSIyMCIgZmlsbD0iIzAwMDAwMCIgc3Ryb2tlPSIjMzMzIiBzdHJva2Utd2lkdGg9IjEiLz4KICAgICAgICAgIAogICAgICAgICAgPCEtLSBCb290IHNoYWZ0cyAtLT4KICAgICAgICAgIDxyZWN0IHg9IjEyMyIgeT0iMjgwIiB3aWR0aD0iMzAiIGhlaWdodD0iMjUiIHJ4PSI1IiBmaWxsPSIjMDAwMDAwIiBzdHJva2U9IiMzMzMiIHN0cm9rZS13aWR0aD0iMSIvPgogICAgICAgICAgPHJlY3QgeD0iMTQ3IiB5PSIyODAiIHdpZHRoPSIzMCIgaGVpZ2h0PSIyNSIgcng9IjUiIGZpbGw9IiMwMDAwMDAiIHN0cm9rZT0iIzMzMyIgc3Ryb2tlLXdpZHRoPSIxIi8+CiAgICAgICAgPC9nPgogICAgICAKICAgICAgPGcgb3BhY2l0eT0iMC44Ij4KICAgICAgICA8cmVjdCB4PSIxMCIgeT0iMzIwIiB3aWR0aD0iMjgwIiBoZWlnaHQ9IjcwIiByeD0iOCIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwwLjkpIiBzdHJva2U9IiNlMmU4ZjAiLz4KICAgICAgICA8dGV4dCB4PSIyMCIgeT0iMzQwIiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTIiIGZvbnQtd2VpZ2h0PSJib2xkIiBmaWxsPSIjMzc0MTUxIj4KICAgICAgICAgIE91dGZpdCBDb21wb25lbnRzOgogICAgICAgIDwvdGV4dD4KICAgIAogICAgICAgICAgPHRleHQgeD0iMjAiIHk9IjM1NSIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjEwIiBmaWxsPSIjNmI3MjgwIj4KICAgICAgICAgICAg8J+RlSBXaGl0ZSBDb3R0b24gVC1TaGlydCAtIHdoaXRlCiAgICAgICAgICA8L3RleHQ+CiAgICAgICAgCiAgICAgICAgICA8dGV4dCB4PSIyMCIgeT0iMzY3IiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTAiIGZpbGw9IiM2YjcyODAiPgogICAgICAgICAgICDwn5GWIERhcmsgSmVhbnMgLSBibHVlLCBkYXJrCiAgICAgICAgICA8L3RleHQ+CiAgICAgICAgCiAgICAgICAgICA8dGV4dCB4PSIyMCIgeT0iMzc5IiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTAiIGZpbGw9IiM2YjcyODAiPgogICAgICAgICAgICDwn5GfIEJsYWNrIExlYXRoZXIgQm9vdHMgLSBibGFjawogICAgICAgICAgPC90ZXh0PgogICAgICAgIAogICAgICAgICAgPHRleHQgeD0iMjAiIHk9IjM5MSIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjEwIiBmaWxsPSIjNmI3MjgwIj4KICAgICAgICAgICAg8J+RlCBVbm5hbWVkIGl0ZW0gLSBObyBjb2xvcgogICAgICAgICAgPC90ZXh0PgogICAgICAgIDwvZz48L3N2Zz4=",
+      "aiGenerated": false,
+      "aiModel": null,
+      "createdAt": "2025-07-01T19:42:47.082Z",
+      "updatedAt": "2025-07-01T19:42:47.082Z"
+    }
+  ]
+}
