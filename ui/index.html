@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>StyleAgent</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app">
+    <header class="header">
+      <h1>StyleAgent</h1>
+      <div class="header-actions">
+        <button class="btn-primary" id="addClothingBtn">Add Item</button>
+        <button class="btn-secondary" id="askAgentBtn">Ask Agent</button>
+      </div>
+    </header>
+
+    <main class="main">
+      <aside class="sidebar">
+        <div class="filters">
+          <h3>Filters</h3>
+          <div class="filter-group">
+            <label>Category</label>
+            <select id="categoryFilter">
+              <option value="">All</option>
+              <option value="tops">Tops</option>
+              <option value="bottoms">Bottoms</option>
+              <option value="shoes">Shoes</option>
+              <option value="accessories">Accessories</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label>Season</label>
+            <select id="seasonFilter">
+              <option value="">All</option>
+              <option value="spring">Spring</option>
+              <option value="summer">Summer</option>
+              <option value="fall">Fall</option>
+              <option value="winter">Winter</option>
+            </select>
+          </div>
+        </div>
+      </aside>
+
+      <section class="wardrobe">
+        <div class="wardrobe-header">
+          <h2>Your Wardrobe</h2>
+          <div class="view-toggle">
+            <button class="view-btn active" data-view="grid">Grid</button>
+            <button class="view-btn" data-view="list">List</button>
+          </div>
+        </div>
+        <div class="clothing-grid" id="clothingGrid">
+          <!-- Clothing items will be populated here -->
+          <div class="clothing-item">
+            <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjI0MCIgdmlld0JveD0iMCAwIDIwMCAyNDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iMjQwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik04NS4zMzMzIDk2TDEwMCA4MC42NjY3TDExNC42NjcgOTZWMTEzLjMzM0g4NS4zMzMzVjk2WiIgZmlsbD0iIzlCA0EzQkYiLz4KPC9zdmc+" alt="Sample clothing item">
+            <div class="item-info">
+              <h4>Sample T-Shirt</h4>
+              <span class="category">Tops</span>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <div class="agent-panel" id="agentPanel" style="display: none;">
+      <div class="agent-header">
+        <h3>Style Agent</h3>
+        <button class="close-btn" id="closeAgentBtn">×</button>
+      </div>
+      <div class="agent-content">
+        <div class="conversation" id="conversation">
+          <div class="message agent-message">
+            <p>Hi! I'm your style agent. Ask me anything about your wardrobe or what to wear today!</p>
+          </div>
+        </div>
+        <div class="input-area">
+          <input type="text" id="agentInput" placeholder="Ask me about your style...">
+          <button id="sendBtn">Send</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
