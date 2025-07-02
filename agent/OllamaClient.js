@@ -177,10 +177,25 @@ class OllamaClient {
 
       const data = await response.json();
       console.log('✅ API response received');
+      console.log('📊 Response structure:', { 
+        hasMessage: !!data.message, 
+        messageType: typeof data.message,
+        hasContent: !!data.message?.content,
+        contentType: typeof data.message?.content
+      });
+      
+      // Extract response content properly - prioritize content field
+      const responseContent = data.message?.content || data.message || '';
+      console.log('📝 Extracted response content length:', responseContent.length);
+      
+      if (!responseContent) {
+        console.error('❌ Empty response content from API');
+        throw new Error('Empty response from vision model');
+      }
       
       return {
         success: true,
-        response: data.message?.content || data.message,
+        response: responseContent,
         model: data.model,
         created_at: data.created_at,
         done: data.done,

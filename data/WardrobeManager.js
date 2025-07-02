@@ -63,7 +63,7 @@ class WardrobeManager {
     this.validateItem(itemData);
 
     const item = {
-      id: uuidv4(),
+      id: itemData.id || uuidv4(), // Use provided ID if available (from ClothingAnalyzer)
       name: itemData.name,
       category: itemData.category,
       brand: itemData.brand || '',
@@ -76,11 +76,21 @@ class WardrobeManager {
       purchasePrice: itemData.purchasePrice || null,
       condition: itemData.condition || 'good',
       favorite: itemData.favorite || false,
-      timesWorn: 0,
-      lastWorn: null,
+      timesWorn: itemData.timesWorn || 0,
+      lastWorn: itemData.lastWorn || null,
       tags: Array.isArray(itemData.tags) ? itemData.tags : [],
       notes: itemData.notes || '',
-      imagePath: itemData.imagePath || null,
+      // Preserve image data fields
+      image: itemData.image || null, // Data URL for immediate display
+      imageUrl: itemData.imageUrl || null, // Alternative image URL
+      imagePath: itemData.imagePath || null, // Legacy field
+      // Preserve metadata if available
+      metadata: itemData.metadata || null,
+      // Analysis data
+      confidence: itemData.confidence || null,
+      style: itemData.style || 'casual',
+      pattern: itemData.pattern || 'solid',
+      description: itemData.description || '',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };

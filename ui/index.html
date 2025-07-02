@@ -25,31 +25,207 @@
           <h2>🎨 Outfit Builder</h2>
           <p>Create and design new outfits</p>
         </div>
-        <div class="builder-content">
-          <div class="outfit-canvas">
-            <div class="outfit-slot outfit-top">
-              <div class="slot-placeholder">
-                <span>👕</span>
-                <p>Select a top</p>
-              </div>
+        
+        <!-- Context & Smart Suggestions -->
+        <div class="builder-context">
+          <div class="context-controls">
+            <div class="occasion-selector">
+              <label>Occasion:</label>
+              <select id="occasionSelect">
+                <option value="casual">Casual</option>
+                <option value="work">Work</option>
+                <option value="formal">Formal</option>
+                <option value="date">Date Night</option>
+                <option value="gym">Gym/Active</option>
+                <option value="travel">Travel</option>
+                <option value="party">Party</option>
+                <option value="beach">Beach</option>
+              </select>
             </div>
-            <div class="outfit-slot outfit-bottom">
-              <div class="slot-placeholder">
-                <span>👖</span>
-                <p>Select bottoms</p>
-              </div>
+            <div class="weather-selector">
+              <label>Weather:</label>
+              <select id="weatherSelect">
+                <option value="mild">Mild</option>
+                <option value="hot">Hot</option>
+                <option value="cold">Cold</option>
+                <option value="rainy">Rainy</option>
+                <option value="windy">Windy</option>
+              </select>
             </div>
-            <div class="outfit-slot outfit-shoes">
-              <div class="slot-placeholder">
-                <span>👟</span>
-                <p>Select shoes</p>
+            <button class="btn-smart" id="getSmartSuggestionsBtn">🧠 Get Smart Suggestions</button>
+          </div>
+        </div>
+
+        <div class="builder-main">
+          <!-- Outfit Canvas -->
+          <div class="outfit-canvas-container">
+            <div class="outfit-canvas">
+              <!-- Primary Clothing -->
+              <div class="clothing-section primary-clothing">
+                <h3>Essential Items</h3>
+                <div class="outfit-slots-row">
+                  <div class="outfit-slot outfit-tops" data-category="tops">
+                    <div class="slot-header">
+                      <span class="slot-icon">👕</span>
+                      <span class="slot-label">Tops</span>
+                    </div>
+                    <div class="slot-content">
+                      <div class="slot-placeholder">
+                        <p>Select a top</p>
+                        <button class="select-btn">Choose</button>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div class="outfit-slot outfit-bottoms" data-category="bottoms">
+                    <div class="slot-header">
+                      <span class="slot-icon">👖</span>
+                      <span class="slot-label">Bottoms</span>
+                    </div>
+                    <div class="slot-content">
+                      <div class="slot-placeholder">
+                        <p>Select bottoms</p>
+                        <button class="select-btn">Choose</button>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div class="outfit-slot outfit-shoes" data-category="shoes">
+                    <div class="slot-header">
+                      <span class="slot-icon">👟</span>
+                      <span class="slot-label">Shoes</span>
+                    </div>
+                    <div class="slot-content">
+                      <div class="slot-placeholder">
+                        <p>Select shoes</p>
+                        <button class="select-btn">Choose</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Secondary Clothing -->
+              <div class="clothing-section secondary-clothing">
+                <h3>Additional Items</h3>
+                <div class="outfit-slots-row">
+                  <div class="outfit-slot outfit-outerwear" data-category="outerwear">
+                    <div class="slot-header">
+                      <span class="slot-icon">🧥</span>
+                      <span class="slot-label">Outerwear</span>
+                    </div>
+                    <div class="slot-content">
+                      <div class="slot-placeholder">
+                        <p>Add jacket/coat</p>
+                        <button class="select-btn">Choose</button>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div class="outfit-slot outfit-accessories" data-category="accessories">
+                    <div class="slot-header">
+                      <span class="slot-icon">👜</span>
+                      <span class="slot-label">Accessories</span>
+                    </div>
+                    <div class="slot-content">
+                      <div class="slot-placeholder">
+                        <p>Add accessories</p>
+                        <button class="select-btn">Choose</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Special Categories -->
+              <div class="clothing-section special-clothing">
+                <h3>Special Categories</h3>
+                <div class="outfit-slots-row">
+                  <div class="outfit-slot outfit-underwear" data-category="underwear">
+                    <div class="slot-header">
+                      <span class="slot-icon">🩲</span>
+                      <span class="slot-label">Underwear</span>
+                    </div>
+                    <div class="slot-content">
+                      <div class="slot-placeholder">
+                        <p>Add undergarments</p>
+                        <button class="select-btn">Choose</button>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div class="outfit-slot outfit-sleepwear" data-category="sleepwear">
+                    <div class="slot-header">
+                      <span class="slot-icon">🌙</span>
+                      <span class="slot-label">Sleepwear</span>
+                    </div>
+                    <div class="slot-content">
+                      <div class="slot-placeholder">
+                        <p>Add sleepwear</p>
+                        <button class="select-btn">Choose</button>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div class="outfit-slot outfit-activewear" data-category="activewear">
+                    <div class="slot-header">
+                      <span class="slot-icon">🏃</span>
+                      <span class="slot-label">Activewear</span>
+                    </div>
+                    <div class="slot-content">
+                      <div class="slot-placeholder">
+                        <p>Add activewear</p>
+                        <button class="select-btn">Choose</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-          <div class="builder-actions">
-            <button class="btn-primary" id="generateOutfitBtn">✨ Generate Outfit</button>
-            <button class="btn-secondary" id="saveOutfitBtn">💾 Save Outfit</button>
+
+          <!-- Smart Suggestions Panel -->
+          <div class="smart-suggestions-panel">
+            <div class="suggestions-header">
+              <h3>🧠 Smart Suggestions</h3>
+              <div class="suggestions-tabs">
+                <button class="suggestion-tab active" data-tab="based-on-selection">Based on Selection</button>
+                <button class="suggestion-tab" data-tab="trending">Trending</button>
+                <button class="suggestion-tab" data-tab="weather">Weather</button>
+              </div>
+            </div>
+            
+            <div class="suggestions-content">
+              <div class="suggestion-category active" id="based-on-selection">
+                <p class="suggestions-hint">Select items to see AI-powered suggestions that match!</p>
+                <div class="suggestions-grid" id="selectionBasedSuggestions">
+                  <!-- AI suggestions will populate here -->
+                </div>
+              </div>
+              
+              <div class="suggestion-category" id="trending">
+                <p class="suggestions-hint">Popular combinations in your wardrobe</p>
+                <div class="suggestions-grid" id="trendingSuggestions">
+                  <!-- Trending suggestions will populate here -->
+                </div>
+              </div>
+              
+              <div class="suggestion-category" id="weather">
+                <p class="suggestions-hint">Perfect for today's weather</p>
+                <div class="suggestions-grid" id="weatherSuggestions">
+                  <!-- Weather-based suggestions will populate here -->
+                </div>
+              </div>
+            </div>
           </div>
+        </div>
+
+        <!-- Builder Actions -->
+        <div class="builder-actions">
+          <button class="btn-primary" id="generateOutfitBtn">✨ Generate Complete Outfit</button>
+          <button class="btn-secondary" id="saveOutfitBtn">💾 Save Outfit</button>
+          <button class="btn-tertiary" id="clearOutfitBtn">🗑️ Clear All</button>
+          <button class="btn-tertiary" id="randomizeOutfitBtn">🎲 Randomize</button>
         </div>
       </section>
 

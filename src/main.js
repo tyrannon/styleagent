@@ -824,9 +824,24 @@ function setupIpcHandlers() {
 
       for (const item of items) {
         try {
+          console.log('🏷️ Adding item to wardrobe:', item.name);
+          console.log('📸 Item image data:', {
+            hasImage: !!item.image,
+            hasImageUrl: !!item.imageUrl,
+            imagePreview: item.image ? item.image.substring(0, 50) + '...' : 'none'
+          });
+          
           const addResult = await wardrobeManager.addItem(item);
+          
+          console.log('✅ Item added with image data:', {
+            hasImage: !!addResult.image,
+            hasImageUrl: !!addResult.imageUrl,
+            id: addResult.id
+          });
+          
           results.added.push(addResult);
         } catch (error) {
+          console.error('❌ Error adding item:', error);
           results.errors.push({
             item: item,
             error: error.message

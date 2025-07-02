@@ -459,6 +459,17 @@ class StyleAgent {
 
   renderItemCard(item) {
     const colors = item.color.join(', ');
+    
+    // Debug image data
+    console.log('🖼️ Rendering item:', item.name);
+    console.log('📸 Image data available:', {
+      hasImage: !!item.image,
+      hasImageUrl: !!item.imageUrl,
+      hasImagePath: !!item.imagePath,
+      imageType: typeof item.image,
+      imagePreview: item.image ? item.image.substring(0, 50) + '...' : 'none'
+    });
+    
     // Check for stored image data URL first, then imageUrl, then placeholder
     const imageUrl = item.image || item.imageUrl || this.generatePlaceholderImage(item);
     const favorite = item.favorite ? '<span class="favorite-star">⭐</span>' : '';
@@ -1053,31 +1064,424 @@ class StyleAgent {
   // ==================== BUILDER TAB ====================
   
   initializeBuilder() {
-    const generateOutfitBtn = document.getElementById('generateOutfitBtn');
-    const saveOutfitBtn = document.getElementById('saveOutfitBtn');
+    // Initialize enhanced builder state
+    this.builderState = {
+      isSelecting: false,
+      selectingCategory: null,
+      selectedItems: {
+        tops: null,
+        bottoms: null,
+        shoes: null,
+        outerwear: null,
+        accessories: [],
+        underwear: null,
+        sleepwear: null,
+        activewear: null
+      },
+      currentOccasion: 'casual',
+      currentWeather: 'mild'
+    };
 
-    generateOutfitBtn.addEventListener('click', () => this.generateAIOutfit());
-    saveOutfitBtn.addEventListener('click', () => this.saveCurrentOutfit());
+    // Initialize event listeners
+    this.initializeBuilderEvents();
+    
+    // Initialize suggestions system
+    this.initializeSuggestions();
+    
+    // Load initial suggestions
+    this.updateSmartSuggestions();
+  }
 
-    // Add click listeners to outfit slots for manual selection
-    const outfitSlots = document.querySelectorAll('.outfit-slot');
-    outfitSlots.forEach(slot => {
+  initializeBuilderEvents() {
+    // Main action buttons
+    document.getElementById('generateOutfitBtn').addEventListener('click', () => this.generateAIOutfit());
+    document.getElementById('saveOutfitBtn').addEventListener('click', () => this.saveCurrentOutfit());
+    document.getElementById('clearOutfitBtn').addEventListener('click', () => this.clearAllOutfitSlots());
+    document.getElementById('randomizeOutfitBtn').addEventListener('click', () => this.randomizeOutfit());
+    
+    // Context controls
+    document.getElementById('occasionSelect').addEventListener('change', (e) => {
+      this.builderState.currentOccasion = e.target.value;
+      this.updateSmartSuggestions();
+    });
+    
+    document.getElementById('weatherSelect').addEventListener('change', (e) => {
+      this.builderState.currentWeather = e.target.value;
+      this.updateSmartSuggestions();
+    });
+    
+    document.getElementById('getSmartSuggestionsBtn').addEventListener('click', () => {
+      this.generateSmartSuggestions();
+    });
+
+    // Outfit slot selection
+    document.querySelectorAll('.outfit-slot').forEach(slot => {
       slot.addEventListener('click', (e) => {
-        const category = this.getSlotCategory(slot);
+        if (e.target.classList.contains('item-remove-btn')) {
+          this.removeItemFromSlot(slot);
+          return;
+        }
+        const category = slot.dataset.category;
         this.startItemSelection(category);
+      });
+    });
+
+    // Suggestion tabs
+    document.querySelectorAll('.suggestion-tab').forEach(tab => {
+      tab.addEventListener('click', (e) => {
+        this.switchSuggestionTab(e.target.dataset.tab);
       });
     });
   }
 
   refreshBuilder() {
     this.updateBuilderSlots();
+    this.updateSmartSuggestions();
   }
 
-  getSlotCategory(slot) {
-    if (slot.classList.contains('outfit-top')) return 'tops';
-    if (slot.classList.contains('outfit-bottom')) return 'bottoms';
-    if (slot.classList.contains('outfit-shoes')) return 'shoes';
-    return 'accessories';
+  // ==================== SUGGESTIONS SYSTEM ====================
+  
+  initializeSuggestions() {
+    this.suggestionSystem = {
+      currentTab: 'based-on-selection',
+      cache: {
+        'based-on-selection': [],
+        'trending': [],
+        'weather': []
+      }
+    };
+  }
+
+  switchSuggestionTab(tabName) {
+    // Update tab buttons
+    document.querySelectorAll('.suggestion-tab').forEach(tab => {
+      tab.classList.toggle('active', tab.dataset.tab === tabName);
+    });
+    
+    // Update content sections
+    document.querySelectorAll('.suggestion-category').forEach(category => {
+      category.classList.toggle('active', category.id === tabName);
+    });
+    
+    this.suggestionSystem.currentTab = tabName;
+    this.updateSmartSuggestions();
+  }
+
+  async updateSmartSuggestions() {
+    const currentTab = this.suggestionSystem.currentTab;
+    console.log('updateSmartSuggestions called for tab:', currentTab);
+    
+    // Map tab names to container IDs
+    const containerIds = {
+      'based-on-selection': 'selectionBasedSuggestions',
+      'trending': 'trendingSuggestions', 
+      'weather': 'weatherSuggestions'
+    };
+    
+    const container = document.getElementById(containerIds[currentTab]);
+    console.log('Looking for container ID:', containerIds[currentTab]);
+    console.log('Container found:', !!container);
+    
+    if (!container) return;
+
+    try {
+      container.innerHTML = '<div class="suggestions-loading">🧠 Generating smart suggestions...</div>';
+      
+      let suggestions = [];
+      
+      switch (currentTab) {
+        case 'based-on-selection':
+          suggestions = await this.generateSelectionBasedSuggestions();
+          break;
+        case 'trending':
+          suggestions = await this.generateTrendingSuggestions();
+          break;
+        case 'weather':
+          suggestions = await this.generateWeatherSuggestions();
+          break;
+      }
+      
+      console.log('Generated suggestions for', currentTab, ':', suggestions.length, 'items');
+      this.renderSuggestions(container, suggestions);
+    } catch (error) {
+      console.error('Error updating suggestions:', error);
+      container.innerHTML = '<div class="suggestions-empty">❌ Failed to load suggestions</div>';
+    }
+  }
+
+  async generateSelectionBasedSuggestions() {
+    const selectedItems = this.getSelectedItemsArray();
+    console.log('generateSelectionBasedSuggestions - selected items:', selectedItems);
+    
+    if (selectedItems.length === 0) {
+      // If no items selected, show some popular items as suggestions
+      const allItems = this.currentItems || [];
+      console.log('No items selected, showing popular items from:', allItems.length, 'total items');
+      return allItems.slice(0, 6);
+    }
+
+    // Use AI to suggest complementary items
+    try {
+      const prompt = this.createSuggestionPrompt(selectedItems);
+      const result = await AIAPI.chat(prompt);
+      
+      if (result.success) {
+        return await this.processSuggestionResponse(result.response);
+      }
+    } catch (error) {
+      console.error('AI suggestion error:', error);
+    }
+
+    // Fallback to rule-based suggestions
+    return this.generateRuleBasedSuggestions(selectedItems);
+  }
+
+  async generateTrendingSuggestions() {
+    // Get most worn items and popular combinations
+    const allItems = this.currentItems || [];
+    console.log('generateTrendingSuggestions - all items:', allItems.length);
+    
+    // Filter items with wear count, or fallback to all items
+    let trending = allItems.filter(item => (item.timesWorn || item.wearCount || 0) > 0);
+    
+    if (trending.length === 0) {
+      // If no worn items, just show random items
+      console.log('No worn items found, showing random items');
+      trending = allItems.slice(0, 6);
+    } else {
+      trending = trending
+        .sort((a, b) => (b.timesWorn || b.wearCount || 0) - (a.timesWorn || a.wearCount || 0))
+        .slice(0, 6);
+    }
+    
+    console.log('Trending suggestions:', trending.length, 'items');
+    return trending;
+  }
+
+  async generateWeatherSuggestions() {
+    const weather = this.builderState.currentWeather;
+    const allItems = this.currentItems || [];
+    console.log('generateWeatherSuggestions - weather:', weather, 'items:', allItems.length);
+    
+    // Filter items appropriate for current weather
+    const weatherAppropriate = allItems.filter(item => {
+      switch (weather) {
+        case 'hot':
+          return ['shorts', 'tank', 't-shirt', 'dress', 'sandals', 'flip-flops'].some(term => 
+            item.name.toLowerCase().includes(term) || 
+            item.category === 'activewear'
+          );
+        case 'cold':
+          return ['coat', 'jacket', 'sweater', 'hoodie', 'boots', 'pants'].some(term => 
+            item.name.toLowerCase().includes(term) || 
+            item.category === 'outerwear'
+          );
+        case 'rainy':
+          return ['jacket', 'coat', 'boots', 'umbrella'].some(term => 
+            item.name.toLowerCase().includes(term)
+          );
+        default:
+          return true;
+      }
+    });
+    
+    console.log('Weather appropriate items:', weatherAppropriate.length);
+    return weatherAppropriate.slice(0, 6);
+  }
+
+  createSuggestionPrompt(selectedItems) {
+    const itemDescriptions = selectedItems.map(item => 
+      `${item.category}: ${item.name} (${item.color.join(', ')})`
+    ).join(', ');
+    
+    return `I have selected these clothing items: ${itemDescriptions}. 
+    
+    Based on these selections for a ${this.builderState.currentOccasion} occasion in ${this.builderState.currentWeather} weather, suggest 3-5 complementary items that would complete this outfit. 
+    
+    Consider:
+    - Color coordination and harmony
+    - Style consistency 
+    - Occasion appropriateness
+    - Weather suitability
+    
+    Respond with just the item names and categories, like: "black leather shoes (shoes), silver watch (accessories)"`;
+  }
+
+  async processSuggestionResponse(response) {
+    // Parse AI response and match with actual wardrobe items
+    const allItems = this.currentItems || [];
+    const suggestions = [];
+    
+    // Simple matching based on keywords in the response
+    const words = response.toLowerCase().split(/[,\s]+/);
+    
+    for (const item of allItems) {
+      const itemWords = [
+        ...item.name.toLowerCase().split(/\s+/),
+        ...item.color.map(c => c.toLowerCase()),
+        item.category.toLowerCase()
+      ];
+      
+      const matchScore = itemWords.reduce((score, word) => {
+        return score + (words.includes(word) ? 1 : 0);
+      }, 0);
+      
+      if (matchScore > 0) {
+        suggestions.push({ ...item, matchScore });
+      }
+    }
+    
+    return suggestions
+      .sort((a, b) => b.matchScore - a.matchScore)
+      .slice(0, 6);
+  }
+
+  generateRuleBasedSuggestions(selectedItems) {
+    const allItems = this.currentItems || [];
+    const suggestions = [];
+    
+    // Simple rule-based matching
+    for (const item of allItems) {
+      // Skip already selected items
+      if (selectedItems.find(selected => selected.id === item.id)) {
+        continue;
+      }
+      
+      // Color coordination rules
+      const hasComplementaryColor = selectedItems.some(selected => {
+        return selected.color.some(color => 
+          this.areColorsComplementary(color, item.color[0])
+        );
+      });
+      
+      if (hasComplementaryColor) {
+        suggestions.push(item);
+      }
+    }
+    
+    return suggestions.slice(0, 6);
+  }
+
+  areColorsComplementary(color1, color2) {
+    const neutrals = ['black', 'white', 'gray', 'grey', 'beige', 'cream'];
+    const color1Lower = color1.toLowerCase();
+    const color2Lower = color2.toLowerCase();
+    
+    // Neutrals go with everything
+    if (neutrals.includes(color1Lower) || neutrals.includes(color2Lower)) {
+      return true;
+    }
+    
+    // Same color family
+    if (color1Lower === color2Lower) {
+      return true;
+    }
+    
+    // Basic complementary rules
+    const complementary = {
+      'blue': ['white', 'cream', 'gray'],
+      'red': ['black', 'white', 'gray'],
+      'green': ['white', 'cream', 'brown'],
+      'yellow': ['black', 'blue', 'gray'],
+      'brown': ['cream', 'beige', 'white']
+    };
+    
+    return complementary[color1Lower]?.includes(color2Lower) || 
+           complementary[color2Lower]?.includes(color1Lower);
+  }
+
+  renderSuggestions(container, suggestions) {
+    console.log('renderSuggestions called with:', suggestions?.length, 'suggestions');
+    
+    if (!suggestions || suggestions.length === 0) {
+      container.innerHTML = '<div class="suggestions-empty">No suggestions available</div>';
+      console.log('No suggestions to render');
+      return;
+    }
+    
+    const grid = document.createElement('div');
+    grid.className = 'suggestions-grid';
+    
+    suggestions.forEach((item, index) => {
+      console.log(`Rendering suggestion ${index}:`, item.name, item.category);
+      
+      const suggestionItem = document.createElement('div');
+      suggestionItem.className = 'suggestion-item';
+      suggestionItem.style.cursor = 'pointer';
+      
+      // Use addEventListener instead of onclick for better event handling
+      suggestionItem.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log('Suggestion clicked:', item);
+        this.applySuggestion(item);
+      });
+      
+      const imageUrl = item.image || item.imageUrl || this.generatePlaceholderImage(item);
+      
+      suggestionItem.innerHTML = `
+        <img src="${imageUrl}" alt="${item.name}" class="suggestion-item-image">
+        <div class="suggestion-item-name">${item.name}</div>
+        <div class="suggestion-item-category">${this.formatCategory(item.category)}</div>
+      `;
+      
+      grid.appendChild(suggestionItem);
+    });
+    
+    container.innerHTML = '';
+    container.appendChild(grid);
+    console.log('Suggestions rendered successfully');
+  }
+
+  applySuggestion(item) {
+    console.log('Applying suggestion:', item);
+    
+    // Ensure builder state is initialized
+    if (!this.builderState) {
+      console.log('Builder state not initialized, initializing now...');
+      this.initializeBuilder();
+    }
+    
+    // Add suggested item to appropriate slot
+    const category = item.category;
+    console.log('Adding item to category:', category);
+    this.addItemToBuilder(item, category);
+    
+    // Update the builder display
+    this.updateBuilderSlots();
+    
+    // Update suggestions to reflect the new selection
+    this.updateSmartSuggestions();
+    
+    // Show success notification
+    this.showNotification(`✨ Added ${item.name} to your outfit!`, 'success');
+    
+    // Log the current state for debugging
+    console.log('Builder state after adding item:', this.builderState.selectedItems);
+  }
+
+  async generateSmartSuggestions() {
+    this.showNotification('🧠 Generating AI-powered outfit suggestions...', 'info');
+    
+    try {
+      const context = {
+        occasion: this.builderState.currentOccasion,
+        weather: this.builderState.currentWeather,
+        selectedItems: this.getSelectedItemsArray()
+      };
+      
+      const result = await AIAPI.suggestOutfit(context);
+      
+      if (result.success) {
+        this.showNotification('✨ Smart suggestions updated!', 'success');
+        this.updateSmartSuggestions();
+      } else {
+        this.showNotification('❌ Failed to generate suggestions', 'error');
+      }
+    } catch (error) {
+      console.error('Error generating smart suggestions:', error);
+      this.showNotification('❌ Error generating suggestions', 'error');
+    }
   }
 
   startItemSelection(category) {
@@ -1103,12 +1507,7 @@ class StyleAgent {
     if (!this.builderState.isSelecting) return;
     
     const category = this.builderState.selectingCategory;
-    
-    if (category === 'accessories') {
-      this.builderState.selectedItems[category].push(item);
-    } else {
-      this.builderState.selectedItems[category] = item;
-    }
+    this.addItemToBuilder(item, category);
     
     // Exit selection mode
     this.builderState.isSelecting = false;
@@ -1125,56 +1524,232 @@ class StyleAgent {
     // Go back to builder and update
     this.switchTab('builder');
     this.updateBuilderSlots();
+    this.updateSmartSuggestions();
     
     this.showNotification(`✅ ${item.name} added to outfit!`, 'success');
   }
 
+  addItemToBuilder(item, category) {
+    console.log('addItemToBuilder called with:', { item: item.name, category });
+    console.log('Current builder state:', this.builderState);
+    
+    if (category === 'accessories') {
+      // Accessories can have multiple items
+      if (!Array.isArray(this.builderState.selectedItems[category])) {
+        this.builderState.selectedItems[category] = [];
+      }
+      // Avoid duplicates
+      if (!this.builderState.selectedItems[category].find(existing => existing.id === item.id)) {
+        this.builderState.selectedItems[category].push(item);
+        console.log('Added accessory:', item.name);
+      } else {
+        console.log('Accessory already exists:', item.name);
+      }
+    } else {
+      // Other categories have single items
+      this.builderState.selectedItems[category] = item;
+      console.log('Added item to', category, ':', item.name);
+    }
+    
+    console.log('Updated builder state:', this.builderState.selectedItems);
+  }
+
+  removeItemFromSlot(slot) {
+    const category = slot.dataset.category;
+    
+    if (category === 'accessories') {
+      // For now, clear all accessories - could be enhanced to remove specific items
+      this.builderState.selectedItems[category] = [];
+    } else {
+      this.builderState.selectedItems[category] = null;
+    }
+    
+    this.updateBuilderSlots();
+    this.updateSmartSuggestions();
+    this.showNotification(`🗑️ Removed item from ${category}`, 'info');
+  }
+
+  clearAllOutfitSlots() {
+    this.builderState.selectedItems = {
+      tops: null,
+      bottoms: null,
+      shoes: null,
+      outerwear: null,
+      accessories: [],
+      underwear: null,
+      sleepwear: null,
+      activewear: null
+    };
+    
+    this.updateBuilderSlots();
+    this.updateSmartSuggestions();
+    this.showNotification('🗑️ Cleared all outfit slots', 'info');
+  }
+
+  async randomizeOutfit() {
+    this.showNotification('🎲 Randomizing outfit...', 'info');
+    
+    const allItems = this.currentItems || [];
+    const categories = ['tops', 'bottoms', 'shoes'];
+    
+    // Clear current selection
+    this.clearAllOutfitSlots();
+    
+    // Randomly select items for each category
+    categories.forEach(category => {
+      const categoryItems = allItems.filter(item => item.category === category);
+      if (categoryItems.length > 0) {
+        const randomItem = categoryItems[Math.floor(Math.random() * categoryItems.length)];
+        this.builderState.selectedItems[category] = randomItem;
+      }
+    });
+    
+    // Maybe add outerwear and accessories
+    if (Math.random() > 0.5) {
+      const outerwearItems = allItems.filter(item => item.category === 'outerwear');
+      if (outerwearItems.length > 0) {
+        const randomOuterwear = outerwearItems[Math.floor(Math.random() * outerwearItems.length)];
+        this.builderState.selectedItems.outerwear = randomOuterwear;
+      }
+    }
+    
+    if (Math.random() > 0.3) {
+      const accessoryItems = allItems.filter(item => item.category === 'accessories');
+      if (accessoryItems.length > 0) {
+        const randomAccessory = accessoryItems[Math.floor(Math.random() * accessoryItems.length)];
+        this.builderState.selectedItems.accessories = [randomAccessory];
+      }
+    }
+    
+    this.updateBuilderSlots();
+    this.updateSmartSuggestions();
+    this.showNotification('🎲 Random outfit generated!', 'success');
+  }
+
+  getSelectedItemsArray() {
+    const selected = [];
+    
+    Object.entries(this.builderState.selectedItems).forEach(([category, item]) => {
+      if (category === 'accessories' && Array.isArray(item)) {
+        selected.push(...item);
+      } else if (item) {
+        selected.push(item);
+      }
+    });
+    
+    return selected;
+  }
+
   updateBuilderSlots() {
-    const topSlot = document.querySelector('.outfit-top');
-    const bottomSlot = document.querySelector('.outfit-bottom');
-    const shoesSlot = document.querySelector('.outfit-shoes');
+    console.log('updateBuilderSlots called');
+    console.log('Current builder state:', this.builderState?.selectedItems);
     
-    // Update top slot
-    if (this.builderState.selectedItems.tops) {
-      const item = this.builderState.selectedItems.tops;
-      topSlot.innerHTML = this.renderBuilderItem(item, 'tops');
-    } else {
-      topSlot.innerHTML = `
-        <div class="slot-placeholder">
-          <span>👕</span>
-          <p>Select a top</p>
-        </div>
-      `;
-    }
+    // Update all categories
+    const categories = ['tops', 'bottoms', 'shoes', 'outerwear', 'accessories', 'underwear', 'sleepwear', 'activewear'];
     
-    // Update bottom slot
-    if (this.builderState.selectedItems.bottoms) {
-      const item = this.builderState.selectedItems.bottoms;
-      bottomSlot.innerHTML = this.renderBuilderItem(item, 'bottoms');
-    } else {
-      bottomSlot.innerHTML = `
-        <div class="slot-placeholder">
-          <span>👖</span>
-          <p>Select bottoms</p>
-        </div>
-      `;
-    }
-    
-    // Update shoes slot
-    if (this.builderState.selectedItems.shoes) {
-      const item = this.builderState.selectedItems.shoes;
-      shoesSlot.innerHTML = this.renderBuilderItem(item, 'shoes');
-    } else {
-      shoesSlot.innerHTML = `
-        <div class="slot-placeholder">
-          <span>👟</span>
-          <p>Select shoes</p>
-        </div>
-      `;
-    }
+    categories.forEach(category => {
+      const slot = document.querySelector(`[data-category="${category}"]`);
+      if (!slot) {
+        console.log('Slot not found for category:', category);
+        return;
+      }
+      
+      const slotContent = slot.querySelector('.slot-content');
+      if (!slotContent) {
+        console.log('Slot content not found for category:', category);
+        return;
+      }
+      
+      const selectedItem = this.builderState.selectedItems[category];
+      console.log(`Category ${category} has item:`, selectedItem);
+      
+      if (category === 'accessories') {
+        // Handle multiple accessories
+        if (selectedItem && selectedItem.length > 0) {
+          console.log('Rendering accessories:', selectedItem);
+          slot.classList.add('filled');
+          slotContent.innerHTML = this.renderAccessoriesItems(selectedItem);
+        } else {
+          slot.classList.remove('filled');
+          slotContent.innerHTML = this.renderEmptySlot(category);
+        }
+      } else {
+        // Handle single items
+        if (selectedItem) {
+          console.log('Rendering single item for', category, ':', selectedItem.name);
+          slot.classList.add('filled');
+          slotContent.innerHTML = this.renderSelectedItem(selectedItem);
+        } else {
+          slot.classList.remove('filled');
+          slotContent.innerHTML = this.renderEmptySlot(category);
+        }
+      }
+    });
     
     // Update save button state
     this.updateSaveButtonState();
+  }
+
+  renderSelectedItem(item) {
+    const imageUrl = item.image || item.imageUrl || this.generatePlaceholderImage(item);
+    
+    return `
+      <div class="selected-item">
+        <img src="${imageUrl}" alt="${item.name}" class="selected-item-image">
+        <div class="selected-item-info">
+          <div class="selected-item-name">${item.name}</div>
+          <div class="selected-item-details">${item.color.join(', ')}</div>
+        </div>
+        <button class="item-remove-btn" title="Remove item">×</button>
+      </div>
+    `;
+  }
+
+  renderAccessoriesItems(accessories) {
+    if (accessories.length === 1) {
+      return this.renderSelectedItem(accessories[0]);
+    }
+    
+    // Multiple accessories - show count and first item
+    const firstItem = accessories[0];
+    const imageUrl = firstItem.image || firstItem.imageUrl || this.generatePlaceholderImage(firstItem);
+    
+    return `
+      <div class="selected-item">
+        <img src="${imageUrl}" alt="${firstItem.name}" class="selected-item-image">
+        <div class="selected-item-info">
+          <div class="selected-item-name">${accessories.length} accessories</div>
+          <div class="selected-item-details">${firstItem.name}${accessories.length > 1 ? ` +${accessories.length - 1}` : ''}</div>
+        </div>
+        <button class="item-remove-btn" title="Remove items">×</button>
+      </div>
+    `;
+  }
+
+  renderEmptySlot(category) {
+    const slotInfo = this.getSlotInfo(category);
+    
+    return `
+      <div class="slot-placeholder">
+        <p>${slotInfo.placeholder}</p>
+        <button class="select-btn">Choose</button>
+      </div>
+    `;
+  }
+
+  getSlotInfo(category) {
+    const slotData = {
+      tops: { placeholder: 'Select a top' },
+      bottoms: { placeholder: 'Select bottoms' },
+      shoes: { placeholder: 'Select shoes' },
+      outerwear: { placeholder: 'Add jacket/coat' },
+      accessories: { placeholder: 'Add accessories' },
+      underwear: { placeholder: 'Add undergarments' },
+      sleepwear: { placeholder: 'Add sleepwear' },
+      activewear: { placeholder: 'Add activewear' }
+    };
+    
+    return slotData[category] || { placeholder: 'Select item' };
   }
 
   renderBuilderItem(item, category) {
@@ -1227,27 +1802,28 @@ class StyleAgent {
     try {
       this.showLoading('🎨 Generating AI outfit...');
       
-      const result = await OutfitsAPI.generateFromAI({
-        occasion: 'casual',
-        weather: 'mild',
-        mood: 'comfortable'
+      const result = await AIAPI.suggestOutfit({
+        occasion: this.builderState.currentOccasion,
+        weather: this.builderState.currentWeather,
+        availableItems: this.currentItems || [],
+        categories: ['tops', 'bottoms', 'shoes', 'outerwear', 'accessories', 'underwear', 'sleepwear', 'activewear']
       });
       
       if (result.success) {
-        this.showNotification('✨ AI outfit generated and saved!', 'success');
+        // Parse AI response and match with wardrobe items
+        const suggestions = await this.processSuggestionResponse(result.response);
         
-        // Update builder with AI selected items
-        const selectedItems = result.data.selectedItems;
-        selectedItems.forEach(item => {
-          this.builderState.selectedItems[item.category] = item;
+        // Clear and populate builder with AI suggestions
+        this.clearAllOutfitSlots();
+        
+        suggestions.slice(0, 6).forEach(item => {
+          this.addItemToBuilder(item, item.category);
         });
+        
         this.updateBuilderSlots();
+        this.updateSmartSuggestions();
         
-        // Show outfit details
-        this.displayGeneratedOutfit(result.data);
-        
-        // Refresh outfits tab
-        await this.refreshOutfits();
+        this.showNotification('✨ AI outfit generated!', 'success');
       } else {
         this.showNotification(`❌ Error: ${result.error}`, 'error');
       }
@@ -1268,9 +1844,7 @@ class StyleAgent {
   }
 
   async saveCurrentOutfit() {
-    const selectedItems = Object.values(this.builderState.selectedItems)
-      .filter(item => item !== null)
-      .concat(this.builderState.selectedItems.accessories);
+    const selectedItems = this.getSelectedItemsArray();
     
     if (selectedItems.length === 0) {
       this.showNotification('❌ Please select some items first!', 'error');
@@ -1278,57 +1852,42 @@ class StyleAgent {
     }
 
     try {
-      // Generate visualization
-      const visualResult = await OutfitsAPI.generateVisualization(selectedItems);
+      // Generate visualization if OutfitsAPI is available
+      let visualResult = { success: false };
       
-      if (!visualResult.success) {
-        this.showNotification('❌ Failed to generate outfit preview', 'error');
-        return;
+      if (typeof OutfitsAPI !== 'undefined') {
+        visualResult = await OutfitsAPI.generateVisualization(selectedItems);
       }
 
       // Create outfit data
       const outfitData = {
-        name: `My Outfit - ${new Date().toLocaleDateString()}`,
-        description: 'Manually created outfit',
+        id: `outfit-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        name: `${this.builderState.currentOccasion} Outfit - ${new Date().toLocaleDateString()}`,
+        description: `Created for ${this.builderState.currentOccasion} occasion in ${this.builderState.currentWeather} weather`,
         items: selectedItems.map(item => item.id),
         itemDetails: selectedItems,
-        occasion: 'casual',
-        weather: 'mild',
-        image: visualResult.data.dataURL,
-        aiGenerated: false
+        occasion: this.builderState.currentOccasion,
+        weather: this.builderState.currentWeather,
+        image: visualResult.success ? visualResult.data.dataURL : null,
+        aiGenerated: false,
+        createdAt: new Date().toISOString(),
+        isLoved: false,
+        wearCount: 0
       };
 
-      const result = await OutfitsAPI.createOutfit(outfitData);
+      // Save to localStorage for now (could be enhanced to use proper API)
+      const savedOutfits = JSON.parse(localStorage.getItem('styleagent_outfits') || '[]');
+      savedOutfits.push(outfitData);
+      localStorage.setItem('styleagent_outfits', JSON.stringify(savedOutfits));
       
-      if (result.success) {
-        // Give user feedback about visualization type
-        const visualizationType = visualResult.data.type || 'unknown';
-        if (visualizationType === 'photo-realistic') {
-          this.showNotification('🎨 Outfit saved with photo-realistic image!', 'success');
-        } else if (visualizationType === 'svg') {
-          if (visualResult.data.fallback) {
-            this.showNotification('💾 Outfit saved (using SVG - Stable Diffusion not available)', 'info');
-          } else {
-            this.showNotification('💾 Outfit saved with SVG visualization!', 'success');
-          }
-        } else {
-          this.showNotification('💾 Outfit saved successfully!', 'success');
-        }
-        
-        // Clear builder
-        this.builderState.selectedItems = {
-          tops: null,
-          bottoms: null,
-          shoes: null,
-          outerwear: null,
-          accessories: []
-        };
-        this.updateBuilderSlots();
-        
-        // Refresh outfits tab
+      this.showNotification('💾 Outfit saved successfully!', 'success');
+      
+      // Clear builder
+      this.clearAllOutfitSlots();
+      
+      // Refresh outfits tab if available
+      if (typeof this.refreshOutfits === 'function') {
         await this.refreshOutfits();
-      } else {
-        this.showNotification(`❌ Failed to save outfit: ${result.error}`, 'error');
       }
     } catch (error) {
       console.error('Error saving outfit:', error);
