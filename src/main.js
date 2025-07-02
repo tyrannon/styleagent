@@ -503,21 +503,47 @@ function setupIpcHandlers() {
         };
       }
 
-      // Generate visualization
-      const visualization = outfitVisualizer.generateOutfitPreview(selectedItems, 'large');
-      const dataURL = outfitVisualizer.generateDataURL(visualization);
+      // Generate photo-realistic visualization first, fallback to SVG
+      let visualResult = { success: false };
+      let finalDataURL = null;
+      let visualType = 'svg';
+      let svgVisualization = null;
+      
+      try {
+        // Try photo-realistic generation first
+        visualResult = await photoRealisticVisualizer.generateOutfitPreview(selectedItems, 'large');
+        
+        if (visualResult.success) {
+          finalDataURL = visualResult.image;
+          visualType = visualResult.fallback ? 'svg' : 'photo-realistic';
+          console.log('✅ Photo-realistic outfit generated successfully');
+        } else {
+          console.log('📝 Photo-realistic failed, falling back to SVG:', visualResult.error);
+        }
+      } catch (error) {
+        console.log('📝 Photo-realistic error, falling back to SVG:', error.message);
+      }
+
+      // Fallback to SVG if photo-realistic failed
+      if (!visualResult.success) {
+        console.log('🎨 Generating SVG fallback visualization...');
+        svgVisualization = outfitVisualizer.generateOutfitPreview(selectedItems, 'large');
+        finalDataURL = outfitVisualizer.generateDataURL(svgVisualization);
+        visualType = 'svg';
+      }
 
       // Create outfit data
       const outfitData = {
-        name: `AI Outfit - ${new Date().toLocaleDateString()}`,
-        description: aiResult.suggestion,
+        name: `AI ${context.occasion || 'Casual'} Outfit`,
+        description: aiResult.suggestion || `AI-generated ${context.occasion || 'casual'} outfit for ${context.weather || 'mild'} weather`,
         items: selectedItems.map(item => item.id),
         itemDetails: selectedItems,
         occasion: context.occasion || 'casual',
         weather: context.weather || 'mild',
-        image: dataURL,
+        image: finalDataURL,
         aiGenerated: true,
-        aiModel: 'tinyllama'
+        aiModel: 'tinyllama',
+        type: visualType
       };
 
       // Save the outfit
@@ -528,8 +554,9 @@ function setupIpcHandlers() {
         data: {
           outfit: createResult.data,
           visualization: {
-            svg: visualization,
-            dataURL: dataURL
+            dataURL: finalDataURL,
+            type: visualType,
+            svg: visualType === 'svg' ? svgVisualization : null
           },
           aiSuggestion: aiResult.suggestion,
           selectedItems: selectedItems
