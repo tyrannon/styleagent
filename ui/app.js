@@ -31,7 +31,7 @@ class WardrobeAPI {
   }
 
   static async getStatistics() {
-    return await ipcRenderer.invoke('wardrobe:getStatistics');
+    return await ipcRenderer.invoke('wardrobe:getStats');
   }
 
   static async loadSampleData() {
@@ -282,7 +282,7 @@ class StyleAgent {
         await this.refreshWardrobe();
         break;
       case 'outfits':
-        await this.refreshOutfits();
+        await this.refreshOutfitsWithFallback();
         break;
       case 'profile':
         await this.refreshProfile();
@@ -754,6 +754,7 @@ class StyleAgent {
               <div class="upload-icon">📸</div>
               <h4>Select Clothing Photos</h4>
               <p>Choose multiple images for AI analysis</p>
+              <p class="drag-hint">💡 Or drag & drop images here</p>
               <button class="btn-primary" id="selectImagesBtn">Choose Images</button>
             </div>
             
@@ -787,6 +788,7 @@ class StyleAgent {
     modal.style.display = 'flex';
     
     const selectImagesBtn = modal.querySelector('#selectImagesBtn');
+    const uploadArea = modal.querySelector('#uploadArea');
     console.log('🔘 Select images button found:', !!selectImagesBtn);
     
     // Bind the handler properly with arrow function to preserve 'this' context
@@ -797,6 +799,9 @@ class StyleAgent {
       e.stopPropagation();
       this.handleMultiImageUpload(modal);
     });
+
+    // Add drag-and-drop functionality to the upload area
+    this.setupModalDragDrop(uploadArea, modal);
   }
 
   async handleMultiImageUpload(modal) {
@@ -1800,37 +1805,212 @@ class StyleAgent {
     }
 
     try {
-      this.showLoading('🎨 Generating AI outfit...');
-      
-      const result = await AIAPI.suggestOutfit({
-        occasion: this.builderState.currentOccasion,
-        weather: this.builderState.currentWeather,
-        availableItems: this.currentItems || [],
-        categories: ['tops', 'bottoms', 'shoes', 'outerwear', 'accessories', 'underwear', 'sleepwear', 'activewear']
+      // Show StyleMuse-like progress modal
+      this.showOutfitGenerationProgress();
+
+      // Use the working OutfitsAPI.generateFromAI that handles everything
+      const result = await OutfitsAPI.generateFromAI({
+        occasion: this.builderState.currentOccasion || 'casual',
+        weather: this.builderState.currentWeather || 'mild',
+        mood: 'comfortable'
       });
       
       if (result.success) {
-        // Parse AI response and match with wardrobe items
-        const suggestions = await this.processSuggestionResponse(result.response);
+        this.updateProgressStep('✨ Complete!', 100);
         
-        // Clear and populate builder with AI suggestions
+        // Update builder with AI selected items
+        const selectedItems = result.data.selectedItems;
         this.clearAllOutfitSlots();
         
-        suggestions.slice(0, 6).forEach(item => {
+        selectedItems.forEach(item => {
           this.addItemToBuilder(item, item.category);
         });
         
         this.updateBuilderSlots();
         this.updateSmartSuggestions();
+
+        // Show beautiful completion modal with the generated image
+        setTimeout(() => {
+          this.hideProgressModal();
+          
+          if (result.data.visualization && result.data.visualization.dataURL) {
+            const visualData = {
+              dataURL: result.data.visualization.dataURL,
+              type: result.data.visualization.type || 'svg'
+            };
+            
+            const outfitData = {
+              name: result.data.outfit.name,
+              description: result.data.outfit.description,
+              itemDetails: selectedItems,
+              occasion: this.builderState.currentOccasion || 'casual',
+              weather: this.builderState.currentWeather || 'mild'
+            };
+            
+            this.showOutfitCompletionModal(outfitData, visualData);
+          } else {
+            this.showNotification('✨ AI outfit generated and saved!', 'success');
+            setTimeout(() => this.switchTab('outfits'), 1000);
+          }
+        }, 500);
         
-        this.showNotification('✨ AI outfit generated!', 'success');
       } else {
+        this.hideProgressModal();
         this.showNotification(`❌ Error: ${result.error}`, 'error');
       }
     } catch (error) {
       console.error('Error generating outfit:', error);
+      this.hideProgressModal();
       this.showNotification('❌ Failed to generate outfit', 'error');
     }
+  }
+
+  async generateAndAutoSaveOutfit(selectedItems) {
+    try {
+      console.log('🎨 Generating and auto-saving outfit...', selectedItems.length, 'items');
+      
+      if (!selectedItems || selectedItems.length === 0) {
+        console.log('❌ No items selected for auto-save');
+        return;
+      }
+
+      // Show StyleMuse-like progress modal
+      this.showOutfitGenerationProgress();
+
+      // Generate visualization with progress updates
+      let visualResult = { success: false };
+      if (typeof OutfitsAPI !== 'undefined') {
+        this.updateProgressStep('🎨 Creating outfit visualization...', 60);
+        visualResult = await OutfitsAPI.generateVisualization(selectedItems, 'large');
+        console.log('🖼️ Visualization result:', visualResult.success);
+      }
+
+      this.updateProgressStep('💾 Saving outfit...', 90);
+
+      // Create outfit data with AI metadata
+      const outfitData = {
+        id: `ai-outfit-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        name: `AI ${this.builderState.currentOccasion} Outfit`,
+        description: `AI-generated ${this.builderState.currentOccasion} outfit for ${this.builderState.currentWeather} weather`,
+        items: selectedItems.map(item => item.id),
+        itemDetails: selectedItems,
+        occasion: this.builderState.currentOccasion,
+        weather: this.builderState.currentWeather,
+        image: visualResult.success ? visualResult.data.dataURL : null,
+        aiGenerated: true,
+        createdAt: new Date().toISOString(),
+        isLoved: false,
+        wearCount: 0,
+        type: visualResult.success ? visualResult.data.type : 'text-only'
+      };
+
+      // Save to localStorage immediately (StyleMuse-like)
+      const savedOutfits = JSON.parse(localStorage.getItem('styleagent_outfits') || '[]');
+      savedOutfits.unshift(outfitData); // Add to beginning for most recent first
+      localStorage.setItem('styleagent_outfits', JSON.stringify(savedOutfits));
+      
+      console.log('💾 Outfit auto-saved:', outfitData.name);
+
+      this.updateProgressStep('✨ Complete!', 100);
+
+      // Show beautiful result modal with the generated outfit
+      setTimeout(() => {
+        this.hideProgressModal();
+        if (visualResult.success) {
+          this.showOutfitCompletionModal(outfitData, visualResult.data);
+        } else {
+          this.showOutfitSavedNotification(outfitData);
+        }
+      }, 500);
+
+    } catch (error) {
+      console.error('Error auto-saving outfit:', error);
+      this.hideProgressModal();
+      this.showNotification('⚠️ Could not save outfit automatically', 'warning');
+    }
+  }
+
+  async generateAndDisplayOutfitVisualization(selectedItems) {
+    try {
+      console.log('🎨 Generating outfit visualization...', selectedItems.length, 'items');
+      
+      // Check if we have any items
+      if (!selectedItems || selectedItems.length === 0) {
+        console.log('❌ No items selected for visualization');
+        return;
+      }
+
+      // Generate visualization using the OutfitsAPI
+      let visualResult = { success: false };
+      
+      if (typeof OutfitsAPI !== 'undefined') {
+        this.showLoading('🎨 Creating outfit visualization...');
+        visualResult = await OutfitsAPI.generateVisualization(selectedItems, 'large');
+        console.log('🖼️ Visualization result:', visualResult.success);
+      } else {
+        console.log('❌ OutfitsAPI not available');
+        return;
+      }
+
+      if (visualResult.success && visualResult.data) {
+        // Display the generated image in a modal
+        this.showOutfitVisualizationModal(visualResult.data, selectedItems);
+      } else {
+        console.log('❌ Visualization generation failed:', visualResult.error);
+        this.showNotification('⚠️ Could not generate outfit image, but items are selected!', 'warning');
+      }
+    } catch (error) {
+      console.error('Error generating outfit visualization:', error);
+      this.showNotification('⚠️ Visualization failed, but outfit is ready!', 'warning');
+    }
+  }
+
+  showOutfitVisualizationModal(visualData, items) {
+    // Create a modal to display the generated outfit
+    const modal = document.createElement('div');
+    modal.className = 'modal outfit-visual-modal';
+    modal.innerHTML = `
+      <div class="modal-backdrop"></div>
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>✨ Generated Outfit</h3>
+          <button class="close-btn" onclick="this.closest('.modal').remove()">×</button>
+        </div>
+        <div class="modal-body">
+          <div class="outfit-display">
+            <div class="outfit-image-container">
+              <img src="${visualData.dataURL}" alt="Generated Outfit" class="outfit-preview" />
+              <div class="outfit-type-badge">${visualData.type === 'photo-realistic' ? '📸 Photo-Realistic' : '🎨 Stylized'}</div>
+            </div>
+            <div class="outfit-details">
+              <h4>🧥 Items in this outfit:</h4>
+              <div class="outfit-items-list">
+                ${items.slice(0, 6).map(item => `
+                  <div class="outfit-item-detail">
+                    <span class="item-icon">${this.getCategoryIcon(item.category)}</span>
+                    <span class="item-name">${item.name}</span>
+                    <span class="item-category">${item.category}</span>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          </div>
+          <div class="outfit-actions">
+            <button class="btn-primary" onclick="document.querySelector('.outfit-visual-modal').remove(); app.saveCurrentOutfit();">💾 Save This Outfit</button>
+            <button class="btn-secondary" onclick="this.closest('.modal').remove()">👍 Looks Good</button>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(modal);
+    modal.style.display = 'flex';
+    
+    // Add click handler to image for zoom
+    const img = modal.querySelector('.outfit-preview');
+    img.addEventListener('click', () => {
+      this.showImageModal(visualData.dataURL, 'Generated Outfit');
+    });
   }
 
   displayGeneratedOutfit(data) {
@@ -1885,10 +2065,8 @@ class StyleAgent {
       // Clear builder
       this.clearAllOutfitSlots();
       
-      // Refresh outfits tab if available
-      if (typeof this.refreshOutfits === 'function') {
-        await this.refreshOutfits();
-      }
+      // Refresh outfits tab with fallback
+      await this.refreshOutfitsWithFallback();
     } catch (error) {
       console.error('Error saving outfit:', error);
       this.showNotification('❌ Failed to save outfit', 'error');
@@ -1916,6 +2094,29 @@ class StyleAgent {
       }
     } catch (error) {
       console.error('Error refreshing outfits:', error);
+      this.renderEmptyOutfits();
+    }
+  }
+
+  async refreshOutfitsWithFallback() {
+    try {
+      // Try the main API first
+      if (typeof OutfitsAPI !== 'undefined') {
+        await this.refreshOutfits();
+        return;
+      }
+
+      // Fallback: Load from localStorage directly
+      console.log('📦 Loading outfits from localStorage (fallback)');
+      const savedOutfits = JSON.parse(localStorage.getItem('styleagent_outfits') || '[]');
+      const lovedOutfits = savedOutfits.filter(outfit => outfit.isLoved);
+      
+      this.outfits = savedOutfits;
+      this.renderOutfits(savedOutfits, lovedOutfits);
+      
+      console.log('✅ Loaded', savedOutfits.length, 'outfits from localStorage');
+    } catch (error) {
+      console.error('Error refreshing outfits with fallback:', error);
       this.renderEmptyOutfits();
     }
   }
@@ -2194,11 +2395,562 @@ class StyleAgent {
   
   initializeProfile() {
     // Initialize profile settings
+    console.log('Initializing profile tab...');
+    
+    // Only add the drag-drop section once
+    if (!document.getElementById('addClothingSection')) {
+      // Find the profile content container
+      const profileContent = document.querySelector('.profile-content');
+      if (profileContent) {
+        // Create the add clothing section
+        const addClothingSection = document.createElement('div');
+        addClothingSection.id = 'addClothingSection';
+        addClothingSection.className = 'add-clothing-section';
+        addClothingSection.innerHTML = `
+          <h4>📸 Add to Wardrobe</h4>
+          <div class="add-clothing-container">
+            <div class="drop-zone" id="dropZone">
+              <div class="drop-zone-content">
+                <span class="drop-icon">📷</span>
+                <p class="drop-text">Drag & drop images here</p>
+                <p class="drop-subtext">or</p>
+                <button class="btn-primary" id="addClothingBtn">
+                  📸 Add Clothing
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+        
+        // Insert after analytics cards but before settings
+        const settingsSection = document.querySelector('.settings-section');
+        profileContent.insertBefore(addClothingSection, settingsSection);
+      }
+    }
+    
+    // Initialize drag and drop every time we switch to profile tab
+    setTimeout(() => {
+      this.initializeDragAndDrop();
+      
+      // Initialize add clothing button
+      const addClothingBtn = document.getElementById('addClothingBtn');
+      if (addClothingBtn && !addClothingBtn.hasListener) {
+        addClothingBtn.hasListener = true;
+        addClothingBtn.addEventListener('click', () => {
+          console.log('📸 Add Clothing button clicked');
+          this.showMultiImageUploadModal();
+        });
+      }
+    }, 100);
   }
 
   async refreshProfile() {
+    // Re-initialize profile to ensure drag-drop works
+    this.initializeProfile();
     await this.updateAnalytics();
     await this.loadStyleDNA();
+  }
+
+  initializeDragAndDrop() {
+    console.log('🚀 Starting drag and drop initialization...');
+    
+    const dropZone = document.getElementById('dropZone');
+    if (!dropZone) {
+      console.log('❌ Drop zone not found');
+      return;
+    }
+
+    console.log('🎯 Found drop zone:', dropZone);
+
+    // Use Electron-specific approach for file drops
+    // First, prevent default behavior on the entire document
+    document.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      console.log('📄 Document dragover');
+    });
+
+    document.addEventListener('drop', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      console.log('📄 Document drop');
+    });
+
+    // Now set up the drop zone with better Electron compatibility
+    const setupDropZone = () => {
+      console.log('⚙️ Setting up drop zone handlers...');
+      
+      dropZone.addEventListener('dragenter', (e) => {
+        console.log('🔥 DRAGENTER EVENT!');
+        e.preventDefault();
+        e.stopPropagation();
+        dropZone.classList.add('drag-over');
+      }, true);
+
+      dropZone.addEventListener('dragover', (e) => {
+        console.log('🔄 DRAGOVER EVENT!');
+        e.preventDefault();
+        e.stopPropagation();
+        dropZone.classList.add('drag-over');
+        e.dataTransfer.dropEffect = 'copy';
+      }, true);
+
+      dropZone.addEventListener('dragleave', (e) => {
+        console.log('🚪 DRAGLEAVE EVENT!');
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // Check if we're really leaving the drop zone
+        const rect = dropZone.getBoundingClientRect();
+        const x = e.clientX;
+        const y = e.clientY;
+        
+        if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
+          dropZone.classList.remove('drag-over');
+        }
+      }, true);
+
+      dropZone.addEventListener('drop', (e) => {
+        console.log('🎯 DROP EVENT TRIGGERED!');
+        e.preventDefault();
+        e.stopPropagation();
+        dropZone.classList.remove('drag-over');
+        
+        const files = e.dataTransfer.files;
+        console.log('📦 Files received:', files ? files.length : 0);
+        
+        if (files && files.length > 0) {
+          console.log('✅ Processing files...');
+          this.handleDroppedFiles(files);
+        } else {
+          console.log('❌ No files in drop event');
+        }
+      }, true);
+    };
+
+    // Set up the handlers
+    setupDropZone();
+
+    // Also try the whole-page approach as backup
+    document.body.addEventListener('drop', (e) => {
+      console.log('🌍 BODY DROP EVENT!');
+      console.log('📍 Drop coordinates:', e.clientX, e.clientY);
+      
+      // Check if the drop zone exists and is visible (better approach)
+      const dropZoneElement = document.getElementById('dropZone');
+      console.log('🔍 Drop zone element:', dropZoneElement);
+      console.log('🔍 Drop zone visible:', dropZoneElement ? !dropZoneElement.offsetParent ? 'hidden' : 'visible' : 'not found');
+      console.log('🔍 Current tab from app:', this.currentTab);
+      
+      // If drop zone exists and is visible, accept the drop
+      if (dropZoneElement && dropZoneElement.offsetParent !== null) {
+        console.log('✅ Drop zone is visible - accepting files');
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const files = e.dataTransfer.files;
+        console.log('📁 Files in drop:', files ? files.length : 0);
+        
+        if (files && files.length > 0) {
+          // Add visual feedback to drop zone
+          dropZoneElement.classList.add('drag-over');
+          setTimeout(() => {
+            dropZoneElement.classList.remove('drag-over');
+          }, 300);
+          
+          this.handleDroppedFiles(files);
+        }
+      } else {
+        console.log('❌ Drop zone not visible, ignoring drop');
+      }
+    }, true);
+
+    // Visual feedback setup
+    const dropIcon = dropZone.querySelector('.drop-icon');
+    if (dropIcon) {
+      dropIcon.textContent = '📷✨';
+    }
+    
+    dropZone.style.cursor = 'copy';
+    
+    console.log('✅ Drag and drop setup complete');
+  }
+
+  setupModalDragDrop(uploadArea, modal) {
+    console.log('🎯 Setting up modal drag-and-drop...');
+    
+    // Prevent default drag behaviors on the modal
+    const modalContent = modal.querySelector('.modal-content');
+    
+    const preventDefaults = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+    };
+
+    // Handle drag events on the upload area
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+      uploadArea.addEventListener(eventName, preventDefaults, false);
+      modalContent.addEventListener(eventName, preventDefaults, false);
+    });
+
+    // Visual feedback
+    ['dragenter', 'dragover'].forEach(eventName => {
+      uploadArea.addEventListener(eventName, () => {
+        console.log('🔥 Modal drag enter/over');
+        uploadArea.classList.add('drag-over');
+      }, false);
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+      uploadArea.addEventListener(eventName, () => {
+        console.log('🚪 Modal drag leave/drop');
+        uploadArea.classList.remove('drag-over');
+      }, false);
+    });
+
+    // Handle dropped files
+    uploadArea.addEventListener('drop', (e) => {
+      console.log('🎯 FILES DROPPED ON MODAL!');
+      const files = e.dataTransfer.files;
+      console.log('📦 Files dropped:', files ? files.length : 0);
+      
+      if (files && files.length > 0) {
+        // Filter for image files
+        const imageFiles = Array.from(files).filter(file => 
+          file.type.startsWith('image/')
+        );
+        
+        console.log('🖼️ Image files:', imageFiles.length);
+        
+        if (imageFiles.length > 0) {
+          // Close the current modal and open the dropped files modal
+          modal.remove();
+          this.showMultiImageUploadWithFiles(imageFiles);
+        } else {
+          console.log('❌ No image files found');
+          this.showNotification('❌ Please drop image files only', 'error');
+        }
+      }
+    }, false);
+
+    console.log('✅ Modal drag-and-drop setup complete');
+  }
+
+  showOutfitGenerationProgress() {
+    // Create StyleMuse-like progress modal
+    const modal = document.createElement('div');
+    modal.className = 'modal outfit-progress-modal';
+    modal.id = 'outfitProgressModal';
+    modal.innerHTML = `
+      <div class="modal-backdrop"></div>
+      <div class="modal-content">
+        <div class="modal-body">
+          <div class="progress-container">
+            <div class="progress-icon">
+              <div class="dna-spinner">🧬</div>
+            </div>
+            <h3 class="progress-title">Analyzing Your Style DNA...</h3>
+            <p class="progress-description">Creating the perfect outfit combination</p>
+            
+            <div class="progress-bar-container">
+              <div class="progress-bar">
+                <div class="progress-fill" id="outfitProgressFill"></div>
+              </div>
+              <div class="progress-percentage" id="outfitProgressPercent">20%</div>
+            </div>
+            
+            <div class="progress-step" id="outfitProgressStep">🤖 AI analyzing your preferences...</div>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(modal);
+    modal.style.display = 'flex';
+    
+    // Start with initial progress
+    this.updateProgressStep('🤖 AI analyzing your preferences...', 20);
+  }
+
+  updateProgressStep(stepText, percentage) {
+    const stepEl = document.getElementById('outfitProgressStep');
+    const fillEl = document.getElementById('outfitProgressFill');
+    const percentEl = document.getElementById('outfitProgressPercent');
+    
+    if (stepEl) stepEl.textContent = stepText;
+    if (fillEl) fillEl.style.width = `${percentage}%`;
+    if (percentEl) percentEl.textContent = `${percentage}%`;
+    
+    // Update title based on progress
+    const titleEl = document.querySelector('.progress-title');
+    if (titleEl && percentage >= 90) {
+      titleEl.textContent = 'Almost Ready!';
+    } else if (titleEl && percentage >= 60) {
+      titleEl.textContent = 'Creating Your Look...';
+    }
+  }
+
+  hideProgressModal() {
+    const modal = document.getElementById('outfitProgressModal');
+    if (modal) {
+      modal.remove();
+    }
+  }
+
+  showOutfitCompletionModal(outfitData, visualData) {
+    // Beautiful completion modal with the generated image
+    const modal = document.createElement('div');
+    modal.className = 'modal outfit-completion-modal';
+    modal.innerHTML = `
+      <div class="modal-backdrop"></div>
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>✨ Your Outfit is Ready!</h3>
+          <button class="close-btn" onclick="this.closest('.modal').remove()">×</button>
+        </div>
+        <div class="modal-body">
+          <div class="completion-display">
+            <div class="outfit-image-showcase">
+              <img src="${visualData.dataURL}" alt="Generated Outfit" class="completion-image" />
+              <div class="outfit-badge">${visualData.type === 'photo-realistic' ? '📸 Photo-Realistic' : '🎨 Stylized'}</div>
+            </div>
+            <div class="outfit-summary">
+              <h4>${outfitData.name}</h4>
+              <p class="outfit-desc">${outfitData.description}</p>
+              <div class="outfit-stats">
+                <span class="stat">👔 ${outfitData.itemDetails.length} items</span>
+                <span class="stat">🎯 ${outfitData.occasion}</span>
+                <span class="stat">🌤️ ${outfitData.weather}</span>
+              </div>
+            </div>
+          </div>
+          <div class="completion-actions">
+            <button class="btn-primary" onclick="this.closest('.modal').remove(); app.switchTab('outfits');">
+              👗 View in Outfits
+            </button>
+            <button class="btn-secondary" onclick="this.closest('.modal').remove();">
+              ✨ Create Another
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(modal);
+    modal.style.display = 'flex';
+    
+    // Add click handler to image for zoom
+    const img = modal.querySelector('.completion-image');
+    img.addEventListener('click', () => {
+      this.showImageModal(visualData.dataURL, 'Your Generated Outfit');
+    });
+  }
+
+  showOutfitSavedNotification(outfitData) {
+    // Fallback for when no image was generated
+    this.showNotification(`✨ ${outfitData.name} saved successfully!`, 'success');
+    setTimeout(() => {
+      this.switchTab('outfits');
+    }, 1000);
+  }
+
+  async handleDroppedFiles(files) {
+    console.log('handleDroppedFiles called with:', files.length, 'files');
+    
+    // Filter for image files only
+    const imageFiles = Array.from(files).filter(file => {
+      console.log('File:', file.name, 'Type:', file.type);
+      return file.type.startsWith('image/');
+    });
+
+    if (imageFiles.length === 0) {
+      this.showNotification('❌ Please drop image files only', 'error');
+      return;
+    }
+
+    console.log(`📸 Dropped ${imageFiles.length} image files`);
+    
+    // Show upload modal with dropped files
+    this.showMultiImageUploadModal(imageFiles);
+  }
+
+  showMultiImageUploadModal(droppedFiles = null) {
+    // If files were dropped, use the existing multi-image upload flow
+    if (droppedFiles && droppedFiles.length > 0) {
+      // Convert FileList to array of paths for the existing flow
+      this.showMultiImageUploadWithFiles(droppedFiles);
+    } else {
+      // Otherwise show the regular upload modal
+      this.showMultiImageUpload();
+    }
+  }
+
+  async showMultiImageUploadWithFiles(droppedFiles) {
+    // Create a custom modal for dropped files
+    const modal = document.createElement('div');
+    modal.className = 'modal multi-image-upload-modal';
+    modal.innerHTML = `
+      <div class="modal-backdrop"></div>
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>📸 Analyze Dropped Images</h3>
+          <button class="close-btn" onclick="this.closest('.modal').remove()">×</button>
+        </div>
+        <div class="modal-body">
+          <div class="dropped-files-section">
+            <h4>📎 ${droppedFiles.length} images ready for analysis</h4>
+            <div class="dropped-files-grid">
+              ${Array.from(droppedFiles).map(file => `
+                <div class="dropped-file-preview">
+                  <div class="file-icon">🖼️</div>
+                  <div class="file-name">${file.name}</div>
+                  <div class="file-size">${(file.size / 1024).toFixed(1)} KB</div>
+                </div>
+              `).join('')}
+            </div>
+            <button class="btn-primary" id="analyzeDroppedBtn">🔍 Analyze All Images</button>
+          </div>
+          
+          <div class="analysis-progress" id="analysisProgress" style="display: none;">
+            <div class="progress-header">
+              <h4>🔍 Analyzing Images...</h4>
+              <span class="progress-text" id="progressText">0%</span>
+            </div>
+            <div class="progress-bar">
+              <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div class="current-item" id="currentItem"></div>
+          </div>
+          
+          <div class="analysis-results" id="analysisResults" style="display: none;">
+            <h4>📋 Analysis Results</h4>
+            <div class="results-grid" id="resultsGrid">
+              <!-- Results will be populated here -->
+            </div>
+            <div class="results-actions">
+              <button class="btn-primary" id="addAllItemsBtn">✅ Add All Items</button>
+              <button class="btn-secondary" onclick="this.closest('.modal').remove()">Cancel</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(modal);
+    modal.style.display = 'flex';
+    
+    // Handle analyze button click
+    const analyzeBtn = modal.querySelector('#analyzeDroppedBtn');
+    analyzeBtn.addEventListener('click', async () => {
+      await this.analyzeDroppedFiles(modal, droppedFiles);
+    });
+  }
+
+  async analyzeDroppedFiles(modal, droppedFiles) {
+    try {
+      console.log('Starting analysis of dropped files...');
+      
+      // For Electron, we need to save files temporarily to analyze them
+      // Create temporary file paths
+      const fs = require('fs').promises;
+      const path = require('path');
+      const os = require('os');
+      
+      const tempDir = path.join(os.tmpdir(), 'styleagent-temp');
+      await fs.mkdir(tempDir, { recursive: true });
+      
+      const tempFilePaths = [];
+      
+      // Save each file temporarily
+      for (let i = 0; i < droppedFiles.length; i++) {
+        const file = droppedFiles[i];
+        const buffer = await file.arrayBuffer();
+        const tempPath = path.join(tempDir, `temp-${Date.now()}-${i}-${file.name}`);
+        await fs.writeFile(tempPath, Buffer.from(buffer));
+        tempFilePaths.push(tempPath);
+      }
+      
+      // Hide the dropped files section and show progress
+      const droppedSection = modal.querySelector('.dropped-files-section');
+      const progressArea = modal.querySelector('#analysisProgress');
+      droppedSection.style.display = 'none';
+      progressArea.style.display = 'block';
+      
+      // Set up progress tracking
+      const progressText = modal.querySelector('#progressText');
+      const progressFill = modal.querySelector('#progressFill');
+      const currentItem = modal.querySelector('#currentItem');
+      
+      // Set up progress listener
+      ClothingAnalysisAPI.onAnalysisProgress((progress) => {
+        const percentage = Math.round(progress.percentage);
+        progressText.textContent = `${percentage}%`;
+        progressFill.style.width = `${percentage}%`;
+        currentItem.textContent = `Analyzing: ${progress.imagePath.split('/').pop()}`;
+      });
+      
+      // Use the clothing analysis API
+      const analysisResult = await ClothingAnalysisAPI.analyzeImages(tempFilePaths);
+      
+      // Clean up progress listener
+      ClothingAnalysisAPI.removeAnalysisProgressListener();
+      
+      // Clean up temp files
+      for (const tempPath of tempFilePaths) {
+        try {
+          await fs.unlink(tempPath);
+        } catch (e) {
+          console.error('Error deleting temp file:', e);
+        }
+      }
+      
+      if (analysisResult.success) {
+        this.showAnalysisResults(modal, analysisResult);
+      } else {
+        this.showNotification(`❌ Analysis failed: ${analysisResult.error}`, 'error');
+        modal.remove();
+      }
+      
+    } catch (error) {
+      console.error('Error analyzing dropped files:', error);
+      this.showNotification('❌ Failed to analyze images', 'error');
+      modal.remove();
+    }
+  }
+
+  readFileAsDataURL(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => resolve(e.target.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async analyzeFileData(fileData) {
+    // This is a simplified version - in production, you'd save the file temporarily
+    // or send it directly to the analysis API
+    try {
+      // For now, create a basic item from the data URL
+      const item = {
+        id: `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        name: fileData.name.replace(/\.[^/.]+$/, ''), // Remove extension
+        category: 'tops', // Default category
+        color: ['unknown'],
+        material: ['unknown'],
+        image: fileData.dataUrl,
+        confidence: 0.8,
+        brand: '',
+        size: '',
+        season: ['all-season'],
+        occasion: ['casual']
+      };
+      
+      return item;
+    } catch (error) {
+      console.error('Error analyzing file data:', error);
+      return null;
+    }
   }
 
   async updateAnalytics() {

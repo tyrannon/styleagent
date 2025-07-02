@@ -275,23 +275,28 @@ Examine the clothing carefully and provide information in this EXACT JSON format
 }
 
 NAMING EXAMPLES:
-- "Navy Blue Jeans" (not "Navy Blue Cotton Jeans" or "Jeans Navy Blue")
-- "Red Tank Top" (not "Red Cotton Tank Top")
-- "Black Sneakers" (not "Black Athletic Sneakers")
-- "White Button-Up Shirt"
-- "Gray Hoodie"
-- "Brown Leather Boots"
+- "Navy Blue Jeans" (basic items)
+- "Black Leather Boots" (include material when distinctive)
+- "White Cotton T-Shirt" (include material for luxury items)
+- "Gray Wool Sweater" (natural fibers deserve mention)
+- "Red Silk Blouse" (premium materials)
+- "Brown Suede Jacket" (texture-specific materials)
+- "Vintage Denim Jacket" (style descriptors when obvious)
+- "Striped Cotton Shirt" (patterns + materials)
 
 ANALYSIS GUIDELINES:
-- NAME: Use format [Main Color] [Simple Item Type]. Keep names short and natural.
-- Colors: Be specific (navy blue, burgundy, forest green, charcoal gray, etc.)
-- Materials: Look at texture and fabric appearance (cotton, denim, wool, polyester, silk, leather, etc.)
+- NAME: Use format [Style/Pattern] [Color] [Material] [Item Type]. Include materials for distinctive items.
+- Colors: Be specific (navy blue, burgundy, forest green, charcoal gray, cream, etc.)
+- Materials: Focus on texture and fabric appearance - be specific when visible (cotton, denim, wool, cashmere, silk, leather, suede, linen, polyester, etc.)
+- Include materials in names when they're clearly visible and add value (leather, denim, silk, wool, suede)
 - Brands: Check for visible logos, labels, or brand names
+- Style: Note if vintage, distressed, fitted, oversized, cropped, etc.
 - Category: Must be exactly one of the listed categories
-- Pattern: Describe any patterns or prints visible
+- Pattern: Be specific (solid, vertical stripes, horizontal stripes, floral print, polka dots, plaid, etc.)
+- Description: Include fit, style details, and any unique features
 - Return ONLY the JSON object with no additional text
 
-Focus on creating natural, marketplace-style names that people would actually use.`;
+Focus on creating premium, marketplace-style names that convey quality and specificity.`;
   }
 
   /**
@@ -372,10 +377,12 @@ Focus on creating natural, marketplace-style names that people would actually us
       return data.name;
     }
 
-    // Extract color and category to build a better name
+    // Extract color, material, and category to build a better name
     const colors = Array.isArray(data.colors) ? data.colors : [data.colors || ''];
     const primaryColor = colors[0] || '';
     const category = data.category || 'item';
+    const materials = Array.isArray(data.materials) ? data.materials : [data.materials || ''];
+    const primaryMaterial = materials[0] || '';
     
     // Map categories to common item names
     const itemNames = {
@@ -391,12 +398,59 @@ Focus on creating natural, marketplace-style names that people would actually us
     
     const itemType = itemNames[category] || this.capitalizeFirst(category);
     
-    // Build name: [Color] [Item Type]
-    if (primaryColor && primaryColor !== 'unknown') {
-      return `${this.capitalizeFirst(primaryColor)} ${itemType}`;
-    } else {
-      return itemType;
+    // Enhanced naming with materials for premium feel
+    let name = '';
+    
+    // Add color if available
+    if (primaryColor && primaryColor !== 'unknown' && primaryColor.trim()) {
+      name += this.capitalizeFirst(primaryColor.trim());
     }
+    
+    // Add material if available and relevant (leather, denim, silk, etc.)
+    const relevantMaterials = ['leather', 'denim', 'silk', 'cotton', 'wool', 'cashmere', 'linen', 'suede', 'velvet', 'satin'];
+    if (primaryMaterial && relevantMaterials.some(mat => primaryMaterial.toLowerCase().includes(mat))) {
+      const material = this.capitalizeFirst(primaryMaterial.trim());
+      name += name ? ` ${material}` : material;
+    }
+    
+    // Add item type
+    name += name ? ` ${itemType}` : itemType;
+    
+    // Enhance with style descriptors if detected
+    name = this.addStyleDescriptors(name, data);
+    
+    return name.trim() || 'Clothing Item';
+  }
+
+  addStyleDescriptors(baseName, data) {
+    if (!data.description) return baseName;
+    
+    const description = data.description.toLowerCase();
+    
+    // Add style descriptors based on detected features
+    if (description.includes('vintage') || description.includes('retro')) {
+      return `Vintage ${baseName}`;
+    }
+    if (description.includes('distressed') || description.includes('ripped')) {
+      return `Distressed ${baseName}`;
+    }
+    if (description.includes('oversized') || description.includes('loose')) {
+      return `Oversized ${baseName}`;
+    }
+    if (description.includes('fitted') || description.includes('slim')) {
+      return `Fitted ${baseName}`;
+    }
+    if (description.includes('cropped') || description.includes('short')) {
+      return `Cropped ${baseName}`;
+    }
+    if (description.includes('striped') || description.includes('stripes')) {
+      return `Striped ${baseName}`;
+    }
+    if (description.includes('floral') || description.includes('flower')) {
+      return `Floral ${baseName}`;
+    }
+    
+    return baseName;
   }
 
   /**

@@ -23,9 +23,11 @@ function createWindow() {
     height: 800,
     webPreferences: {
       nodeIntegration: true,
-      contextIsolation: false
+      contextIsolation: false,
+      webSecurity: false, // Allow drag-drop from external sources
+      enableRemoteModule: true
     },
-    titleBarStyle: 'hiddenInset',
+    titleBarStyle: 'default', // Changed from 'hiddenInset' to allow window dragging
     show: false
   });
 
