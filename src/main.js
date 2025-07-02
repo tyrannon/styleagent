@@ -1,15 +1,21 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const WardrobeManager = require('../data/WardrobeManager');
 const OutfitsManager = require('../data/OutfitsManager');
+const StyleDNAManager = require('../data/StyleDNAManager');
 const StyleAI = require('../agent/StyleAI');
 const OutfitVisualizer = require('../agent/OutfitVisualizer');
+const PhotoRealisticVisualizer = require('../agent/PhotoRealisticVisualizer');
+const ClothingAnalyzer = require('../agent/ClothingAnalyzer');
 
 let mainWindow;
 let wardrobeManager;
 let outfitsManager;
+let styleDNAManager;
 let styleAI;
 let outfitVisualizer;
+let photoRealisticVisualizer;
+let clothingAnalyzer;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -40,9 +46,20 @@ app.whenReady().then(async () => {
   wardrobeManager = new WardrobeManager(dataPath);
   await wardrobeManager.initialize();
   
-  // Initialize outfits manager and visualizer
+  // Initialize outfits manager and visualizers
   outfitsManager = new OutfitsManager();
   outfitVisualizer = new OutfitVisualizer();
+  
+  // Initialize Style DNA manager first
+  styleDNAManager = new StyleDNAManager();
+  await styleDNAManager.initialize();
+  
+  // Initialize photo-realistic visualizer with Style DNA manager
+  photoRealisticVisualizer = new PhotoRealisticVisualizer(styleDNAManager);
+  
+  // Initialize clothing analyzer
+  clothingAnalyzer = new ClothingAnalyzer();
+  await clothingAnalyzer.imageStorage.initialize();
   
   // Initialize AI agent
   styleAI = new StyleAI(wardrobeManager);
@@ -52,6 +69,19 @@ app.whenReady().then(async () => {
   } catch (error) {
     console.warn('StyleAI initialization failed:', error.message);
     console.warn('AI features will be limited until Ollama is available');
+  }
+  
+  // Initialize photo-realistic visualizer
+  try {
+    const photoResult = await photoRealisticVisualizer.initialize();
+    if (photoResult.success) {
+      console.log('🎨 PhotoRealistic Visualizer initialized successfully');
+    } else {
+      console.warn('📷 PhotoRealistic Visualizer not available:', photoResult.error);
+      console.warn('💡 Suggestion:', photoResult.suggestion);
+    }
+  } catch (error) {
+    console.warn('PhotoRealistic Visualizer initialization failed:', error.message);
   }
   
   // Set up IPC handlers
@@ -389,18 +419,40 @@ function setupIpcHandlers() {
     }
   });
 
-  ipcMain.handle('outfits:generateVisualization', async (event, items, size = 'large') => {
+  ipcMain.handle('outfits:generateVisualization', async (event, items, size = 'large', options = {}) => {
     try {
-      const svgString = outfitVisualizer.generateOutfitPreview(items, size);
-      const dataURL = outfitVisualizer.generateDataURL(svgString);
+      // Try photo-realistic generation first
+      const photoResult = await photoRealisticVisualizer.generateOutfitPreview(items, size, options);
       
-      return {
-        success: true,
-        data: {
-          svg: svgString,
-          dataURL: dataURL
-        }
-      };
+      if (photoResult.success) {
+        return {
+          success: true,
+          data: {
+            image: photoResult.image,
+            dataURL: photoResult.image,
+            type: photoResult.fallback ? 'svg' : 'photo-realistic',
+            metadata: photoResult.metadata,
+            svg: photoResult.svg || null,
+            fallback: photoResult.fallback || false
+          }
+        };
+      } else {
+        // Fallback to SVG if photo-realistic fails
+        console.log('Falling back to SVG visualization...');
+        const svgString = outfitVisualizer.generateOutfitPreview(items, size);
+        const dataURL = outfitVisualizer.generateDataURL(svgString);
+        
+        return {
+          success: true,
+          data: {
+            svg: svgString,
+            dataURL: dataURL,
+            type: 'svg',
+            fallback: true,
+            photoError: photoResult.error
+          }
+        };
+      }
     } catch (error) {
       console.error('Error generating outfit visualization:', error);
       return {
@@ -485,6 +537,341 @@ function setupIpcHandlers() {
       console.error('Error generating AI outfit:', error);
       return {
         success: false,
+        error: error.message
+      };
+    }
+  });
+
+  // Photo-Realistic Visualization handlers
+  ipcMain.handle('photo:isAvailable', async (event) => {
+    try {
+      const status = photoRealisticVisualizer.getStatus();
+      return {
+        success: true,
+        available: status.available,
+        config: status.config,
+        lastError: status.lastError
+      };
+    } catch (error) {
+      return {
+        success: false,
+        available: false,
+        error: error.message
+      };
+    }
+  });
+
+  ipcMain.handle('photo:generateOutfit', async (event, items, options = {}) => {
+    try {
+      const result = await photoRealisticVisualizer.generateOutfitImage(items, options);
+      return result;
+    } catch (error) {
+      console.error('Error generating photo-realistic outfit:', error);
+      return {
+        success: false,
+        error: error.message,
+        fallback: 'svg'
+      };
+    }
+  });
+
+  ipcMain.handle('photo:generateVariations', async (event, items, options = {}) => {
+    try {
+      const result = await photoRealisticVisualizer.generateOutfitVariations(items, options);
+      return result;
+    } catch (error) {
+      console.error('Error generating outfit variations:', error);
+      return {
+        success: false,
+        error: error.message,
+        fallback: 'svg'
+      };
+    }
+  });
+
+  ipcMain.handle('photo:getModels', async (event) => {
+    try {
+      const result = await photoRealisticVisualizer.getAvailableModels();
+      return result;
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message,
+        models: []
+      };
+    }
+  });
+
+  ipcMain.handle('photo:setModel', async (event, modelName) => {
+    try {
+      const result = await photoRealisticVisualizer.setModel(modelName);
+      return result;
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  });
+
+  // ===================== STYLE DNA HANDLERS =====================
+
+  // Upload photo for Style DNA analysis
+  ipcMain.handle('styleDNA:uploadPhoto', async (event) => {
+    try {
+      const result = await dialog.showOpenDialog(mainWindow, {
+        title: 'Select Your Photo for Style DNA Analysis',
+        buttonLabel: 'Upload Photo',
+        filters: [
+          { name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'bmp', 'webp'] }
+        ],
+        properties: ['openFile']
+      });
+
+      if (result.canceled || !result.filePaths.length) {
+        return { success: false, error: 'No file selected' };
+      }
+
+      const photoPath = result.filePaths[0];
+      const analysisResult = await styleDNAManager.uploadAndAnalyzePhoto(photoPath);
+      
+      return analysisResult;
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  });
+
+  // Get current Style DNA profile
+  ipcMain.handle('styleDNA:getProfile', async (event) => {
+    try {
+      const profile = styleDNAManager.getProfile();
+      const stats = styleDNAManager.getStatistics();
+      
+      return {
+        success: true,
+        profile: profile,
+        statistics: stats
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  });
+
+  // Update Style DNA preferences
+  ipcMain.handle('styleDNA:updatePreferences', async (event, preferences) => {
+    try {
+      const result = await styleDNAManager.updatePreferences(preferences);
+      return result;
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  });
+
+  // Delete Style DNA profile
+  ipcMain.handle('styleDNA:deleteProfile', async (event) => {
+    try {
+      const result = await styleDNAManager.deleteProfile();
+      return result;
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  });
+
+  // Get appearance prompt for outfit generation
+  ipcMain.handle('styleDNA:getAppearancePrompt', async (event) => {
+    try {
+      const prompt = styleDNAManager.generateAppearancePrompt();
+      return {
+        success: true,
+        prompt: prompt,
+        hasProfile: !!styleDNAManager.getProfile()
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message,
+        prompt: ''
+      };
+    }
+  });
+
+  // ===================== MULTI-IMAGE CLOTHING ANALYSIS HANDLERS =====================
+
+  // Upload multiple images for clothing analysis
+  ipcMain.handle('clothing:uploadMultipleImages', async (event) => {
+    try {
+      console.log('🎯 IPC handler called: clothing:uploadMultipleImages');
+      console.log('🪟 Main window available:', !!mainWindow);
+      
+      const result = await dialog.showOpenDialog(mainWindow, {
+        title: 'Select Clothing Images for Analysis',
+        buttonLabel: 'Analyze Images',
+        filters: [
+          { name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'bmp', 'webp'] }
+        ],
+        properties: ['openFile', 'multiSelections']
+      });
+
+      console.log('📂 Dialog result:', result);
+
+      if (result.canceled || !result.filePaths.length) {
+        console.log('❌ No files selected or dialog canceled');
+        return { success: false, error: 'No files selected' };
+      }
+
+      console.log('✅ Files selected:', result.filePaths);
+      return {
+        success: true,
+        imagePaths: result.filePaths,
+        count: result.filePaths.length
+      };
+    } catch (error) {
+      console.error('❌ Error in clothing:uploadMultipleImages:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  });
+
+  // Analyze multiple clothing images
+  ipcMain.handle('clothing:analyzeImages', async (event, imagePaths, options = {}) => {
+    try {
+      if (!clothingAnalyzer) {
+        return {
+          success: false,
+          error: 'Clothing analyzer not initialized'
+        };
+      }
+
+      // Set up progress reporting
+      const progressCallback = (progress) => {
+        event.sender.send('clothing:analysisProgress', progress);
+      };
+
+      const analysisOptions = {
+        ...options,
+        onProgress: progressCallback
+      };
+
+      console.log('🔍 Starting batch analysis of', imagePaths.length, 'clothing images...');
+      
+      const results = await clothingAnalyzer.analyzeMultipleImages(imagePaths, analysisOptions);
+      
+      console.log('✅ Batch analysis complete:', results.stats);
+      
+      return results;
+    } catch (error) {
+      console.error('Error in batch clothing analysis:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  });
+
+  // Analyze single clothing image
+  ipcMain.handle('clothing:analyzeSingleImage', async (event, imagePath, options = {}) => {
+    try {
+      if (!clothingAnalyzer) {
+        return {
+          success: false,
+          error: 'Clothing analyzer not initialized'
+        };
+      }
+
+      console.log('🔍 Analyzing single clothing image:', imagePath);
+      
+      const result = await clothingAnalyzer.analyzeClothingImage(imagePath, options);
+      
+      return result;
+    } catch (error) {
+      console.error('Error analyzing clothing image:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  });
+
+  // Add analyzed items to wardrobe
+  ipcMain.handle('clothing:addAnalyzedItems', async (event, items) => {
+    try {
+      if (!wardrobeManager) {
+        return {
+          success: false,
+          error: 'Wardrobe manager not initialized'
+        };
+      }
+
+      const results = {
+        success: true,
+        added: [],
+        errors: []
+      };
+
+      for (const item of items) {
+        try {
+          const addResult = await wardrobeManager.addItem(item);
+          results.added.push(addResult);
+        } catch (error) {
+          results.errors.push({
+            item: item,
+            error: error.message
+          });
+        }
+      }
+
+      console.log(`✅ Added ${results.added.length} items to wardrobe, ${results.errors.length} errors`);
+      
+      return results;
+    } catch (error) {
+      console.error('Error adding analyzed items to wardrobe:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  });
+
+  // Check vision model availability
+  ipcMain.handle('clothing:checkVisionCapability', async (event) => {
+    try {
+      if (!clothingAnalyzer || !clothingAnalyzer.ollama) {
+        return {
+          success: false,
+          available: false,
+          error: 'Clothing analyzer not available'
+        };
+      }
+
+      const hasVision = await clothingAnalyzer.ollama.hasVisionCapability();
+      const visionModels = await clothingAnalyzer.ollama.getVisionModels();
+      
+      return {
+        success: true,
+        available: hasVision,
+        models: visionModels,
+        recommendation: hasVision ? 
+          'Vision analysis available' : 
+          'Consider installing llava model for better analysis: ollama pull llava'
+      };
+    } catch (error) {
+      return {
+        success: false,
+        available: false,
         error: error.message
       };
     }

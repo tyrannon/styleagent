@@ -1,0 +1,46 @@
+{
+  "id": "6d8dd193-a152-4efb-8cc4-4ab35d0b6c41",
+  "photoId": "30156e99-71e7-4952-a94e-52d52f29a584",
+  "photoPath": "/Users/kaiyakramer/styleagent/uploaded-photos/30156e99-71e7-4952-a94e-52d52f29a584.jpeg",
+  "uploadedAt": "2025-07-01T21:56:40.313Z",
+  "metadata": {},
+  "appearance": {
+    "skinTone": {
+      "category": "medium",
+      "undertone": "warm",
+      "hex": "#D4A574",
+      "confidence": 0.7
+    },
+    "hair": {
+      "color": "brown",
+      "style": "medium",
+      "texture": "straight",
+      "confidence": 0.6
+    },
+    "eyes": {
+      "color": "brown",
+      "confidence": 0.5
+    },
+    "bodyType": {
+      "build": "average",
+      "confidence": 0.4
+    },
+    "facialFeatures": {
+      "structure": "oval",
+      "confidence": 0.3
+    },
+    "style": {
+      "detected": [
+        "casual"
+      ],
+      "confidence": 0.2
+    }
+  },
+  "preferences": {
+    "styles": [],
+    "colors": [],
+    "occasions": [],
+    "customizations": {}
+  },
+  "version": "1.0"
+}

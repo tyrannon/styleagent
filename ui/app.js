@@ -57,6 +57,68 @@ class AIAPI {
   }
 }
 
+class StyleDNAAPI {
+  static async uploadPhoto() {
+    return await ipcRenderer.invoke('styleDNA:uploadPhoto');
+  }
+
+  static async getProfile() {
+    return await ipcRenderer.invoke('styleDNA:getProfile');
+  }
+
+  static async updatePreferences(preferences) {
+    return await ipcRenderer.invoke('styleDNA:updatePreferences', preferences);
+  }
+
+  static async deleteProfile() {
+    return await ipcRenderer.invoke('styleDNA:deleteProfile');
+  }
+
+  static async getAppearancePrompt() {
+    return await ipcRenderer.invoke('styleDNA:getAppearancePrompt');
+  }
+}
+
+class ClothingAnalysisAPI {
+  static async uploadMultipleImages() {
+    console.log('📡 Calling IPC: clothing:uploadMultipleImages');
+    try {
+      const result = await ipcRenderer.invoke('clothing:uploadMultipleImages');
+      console.log('📡 IPC response:', result);
+      return result;
+    } catch (error) {
+      console.error('📡 IPC error:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  static async analyzeImages(imagePaths, options = {}) {
+    return await ipcRenderer.invoke('clothing:analyzeImages', imagePaths, options);
+  }
+
+  static async analyzeSingleImage(imagePath, options = {}) {
+    return await ipcRenderer.invoke('clothing:analyzeSingleImage', imagePath, options);
+  }
+
+  static async addAnalyzedItems(items) {
+    return await ipcRenderer.invoke('clothing:addAnalyzedItems', items);
+  }
+
+  static async checkVisionCapability() {
+    return await ipcRenderer.invoke('clothing:checkVisionCapability');
+  }
+
+  static onAnalysisProgress(callback) {
+    ipcRenderer.on('clothing:analysisProgress', (event, progress) => {
+      callback(progress);
+    });
+  }
+
+  static removeAnalysisProgressListener() {
+    ipcRenderer.removeAllListeners('clothing:analysisProgress');
+  }
+}
+
 class OutfitsAPI {
   static async createOutfit(outfitData) {
     return await ipcRenderer.invoke('outfits:create', outfitData);
@@ -103,6 +165,28 @@ class OutfitsAPI {
   }
 }
 
+class PhotoAPI {
+  static async isAvailable() {
+    return await ipcRenderer.invoke('photo:isAvailable');
+  }
+
+  static async generateOutfit(items, options = {}) {
+    return await ipcRenderer.invoke('photo:generateOutfit', items, options);
+  }
+
+  static async generateVariations(items, options = {}) {
+    return await ipcRenderer.invoke('photo:generateVariations', items, options);
+  }
+
+  static async getModels() {
+    return await ipcRenderer.invoke('photo:getModels');
+  }
+
+  static async setModel(modelName) {
+    return await ipcRenderer.invoke('photo:setModel', modelName);
+  }
+}
+
 // Main StyleAgent Application Class
 class StyleAgent {
   constructor() {
@@ -111,6 +195,7 @@ class StyleAgent {
     this.currentTab = 'wardrobe';
     this.selectedItem = null;
     this.aiAvailable = false;
+    this.photoAvailable = false;
     this.outfits = [];
     this.analytics = {};
     
@@ -147,6 +232,9 @@ class StyleAgent {
     
     // Check AI availability
     await this.checkAIAvailability();
+    
+    // Check photo-realistic generation availability
+    await this.checkPhotoAvailability();
     
     // Load initial data
     await this.loadWardrobe();
@@ -371,7 +459,8 @@ class StyleAgent {
 
   renderItemCard(item) {
     const colors = item.color.join(', ');
-    const imageUrl = item.imageUrl || this.generatePlaceholderImage(item);
+    // Check for stored image data URL first, then imageUrl, then placeholder
+    const imageUrl = item.image || item.imageUrl || this.generatePlaceholderImage(item);
     const favorite = item.favorite ? '<span class="favorite-star">⭐</span>' : '';
     const laundryStatus = this.getLaundryStatusIcon(item.laundryStatus || 'clean');
     const wearCount = item.timesWorn > 0 ? `<span class="wear-count">Worn ${item.timesWorn}x</span>` : '';
@@ -478,7 +567,7 @@ class StyleAgent {
     
     body.innerHTML = `
       <div class="item-details-full">
-        <img src="${item.imageUrl || this.generatePlaceholderImage(item)}" alt="${item.name}" class="item-image-large">
+        <img src="${item.image || item.imageUrl || this.generatePlaceholderImage(item)}" alt="${item.name}" class="item-image-large">
         <div class="item-info-full">
           <p><strong>Category:</strong> ${this.formatCategory(item.category)}</p>
           ${item.brand ? `<p><strong>Brand:</strong> ${item.brand}</p>` : ''}
@@ -569,7 +658,292 @@ class StyleAgent {
     }
   }
 
-  showAddItemModal() {
+  async showAddItemModal() {
+    console.log('🔄 showAddItemModal called');
+    // First check vision capability
+    const visionCheck = await ClothingAnalysisAPI.checkVisionCapability();
+    console.log('👁️ Vision check result:', visionCheck);
+    
+    const modal = document.createElement('div');
+    modal.className = 'modal multi-image-modal';
+    modal.innerHTML = `
+      <div class="modal-backdrop"></div>
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>📸 Add Clothing Items</h3>
+          <button class="close-btn" onclick="this.closest('.modal').remove()">×</button>
+        </div>
+        <div class="modal-body">
+          <div class="add-method-selector">
+            <div class="method-option" id="methodPhotoAnalysis">
+              <div class="method-icon">🤖</div>
+              <div class="method-content">
+                <h4>AI Photo Analysis</h4>
+                <p>Upload multiple photos and let AI automatically detect details</p>
+                ${visionCheck.available ? 
+                  '<span class="status-available">✅ Vision AI Available</span>' : 
+                  '<span class="status-unavailable">⚠️ Vision AI Unavailable</span>'
+                }
+              </div>
+            </div>
+            <div class="method-option" id="methodManualEntry">
+              <div class="method-icon">✏️</div>
+              <div class="method-content">
+                <h4>Manual Entry</h4>
+                <p>Add item details manually (traditional form)</p>
+                <span class="status-available">✅ Always Available</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(modal);
+    modal.style.display = 'flex';
+    
+    // Handle method selection
+    const photoAnalysisMethod = modal.querySelector('#methodPhotoAnalysis');
+    const manualEntryMethod = modal.querySelector('#methodManualEntry');
+    
+    photoAnalysisMethod.addEventListener('click', () => {
+      modal.remove();
+      this.showMultiImageUpload();
+    });
+    
+    manualEntryMethod.addEventListener('click', () => {
+      modal.remove();
+      this.showManualEntryForm();
+    });
+  }
+
+  async showMultiImageUpload() {
+    const modal = document.createElement('div');
+    modal.className = 'modal multi-image-upload-modal';
+    modal.innerHTML = `
+      <div class="modal-backdrop"></div>
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>📸 AI Photo Analysis</h3>
+          <button class="close-btn" onclick="this.closest('.modal').remove()">×</button>
+        </div>
+        <div class="modal-body">
+          <div class="upload-section">
+            <div class="upload-instructions">
+              <h4>🧠 How it works:</h4>
+              <ol>
+                <li>Select multiple photos of your clothing items</li>
+                <li>AI will analyze each photo automatically</li>
+                <li>Review and edit the detected information</li>
+                <li>Add items to your wardrobe</li>
+              </ol>
+            </div>
+            
+            <div class="upload-area" id="uploadArea">
+              <div class="upload-icon">📸</div>
+              <h4>Select Clothing Photos</h4>
+              <p>Choose multiple images for AI analysis</p>
+              <button class="btn-primary" id="selectImagesBtn">Choose Images</button>
+            </div>
+            
+            <div class="analysis-progress" id="analysisProgress" style="display: none;">
+              <div class="progress-header">
+                <h4>🔍 Analyzing Images...</h4>
+                <span class="progress-text" id="progressText">0%</span>
+              </div>
+              <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+              </div>
+              <div class="current-item" id="currentItem"></div>
+            </div>
+            
+            <div class="analysis-results" id="analysisResults" style="display: none;">
+              <h4>📋 Analysis Results</h4>
+              <div class="results-grid" id="resultsGrid">
+                <!-- Results will be populated here -->
+              </div>
+              <div class="results-actions">
+                <button class="btn-primary" id="addAllItemsBtn">✅ Add All Items</button>
+                <button class="btn-secondary" onclick="this.closest('.modal').remove()">Cancel</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(modal);
+    modal.style.display = 'flex';
+    
+    const selectImagesBtn = modal.querySelector('#selectImagesBtn');
+    console.log('🔘 Select images button found:', !!selectImagesBtn);
+    
+    // Bind the handler properly with arrow function to preserve 'this' context
+    selectImagesBtn.addEventListener('click', (e) => {
+      console.log('🖱️ Select images button clicked');
+      console.log('🎯 App context available:', !!this);
+      e.preventDefault();
+      e.stopPropagation();
+      this.handleMultiImageUpload(modal);
+    });
+  }
+
+  async handleMultiImageUpload(modal) {
+    try {
+      console.log('🔄 Starting multi-image upload...');
+      
+      // Upload multiple images
+      const uploadResult = await ClothingAnalysisAPI.uploadMultipleImages();
+      console.log('📤 Upload result:', uploadResult);
+      
+      if (!uploadResult.success) {
+        console.error('❌ Upload failed:', uploadResult.error);
+        this.showNotification(`❌ Upload failed: ${uploadResult.error || 'No images selected'}`, 'error');
+        return;
+      }
+      
+      const { imagePaths, count } = uploadResult;
+      console.log(`📸 Selected ${count} images for analysis`);
+      
+      // Show progress area
+      const uploadArea = modal.querySelector('#uploadArea');
+      const progressArea = modal.querySelector('#analysisProgress');
+      
+      uploadArea.style.display = 'none';
+      progressArea.style.display = 'block';
+      
+      // Set up progress tracking
+      const progressText = modal.querySelector('#progressText');
+      const progressFill = modal.querySelector('#progressFill');
+      const currentItem = modal.querySelector('#currentItem');
+      
+      ClothingAnalysisAPI.onAnalysisProgress((progress) => {
+        const percentage = Math.round(progress.percentage);
+        progressText.textContent = `${percentage}%`;
+        progressFill.style.width = `${percentage}%`;
+        currentItem.textContent = `Analyzing: ${progress.imagePath.split('/').pop()}`;
+      });
+      
+      // Start analysis
+      const analysisResult = await ClothingAnalysisAPI.analyzeImages(imagePaths);
+      
+      // Clean up progress listener
+      ClothingAnalysisAPI.removeAnalysisProgressListener();
+      
+      if (analysisResult.success) {
+        this.showAnalysisResults(modal, analysisResult);
+      } else {
+        this.showNotification(`❌ Analysis failed: ${analysisResult.error}`, 'error');
+        modal.remove();
+      }
+      
+    } catch (error) {
+      console.error('Error in multi-image upload:', error);
+      this.showNotification('❌ Failed to analyze images', 'error');
+      modal.remove();
+    }
+  }
+
+  showAnalysisResults(modal, analysisResult) {
+    const progressArea = modal.querySelector('#analysisProgress');
+    const resultsArea = modal.querySelector('#analysisResults');
+    const resultsGrid = modal.querySelector('#resultsGrid');
+    
+    progressArea.style.display = 'none';
+    resultsArea.style.display = 'block';
+    
+    // Clear previous results
+    resultsGrid.innerHTML = '';
+    
+    // Display analyzed items
+    analysisResult.items.forEach((item, index) => {
+      const itemCard = document.createElement('div');
+      itemCard.className = 'analysis-result-card';
+      itemCard.innerHTML = `
+        <div class="result-header">
+          <h5>${item.name}</h5>
+          <span class="confidence-badge">🎯 ${Math.round(item.confidence * 100)}%</span>
+        </div>
+        <div class="result-details">
+          <div class="detail-row">
+            <span class="detail-label">Category:</span>
+            <select class="detail-input" data-field="category" data-index="${index}">
+              <option value="tops" ${item.category === 'tops' ? 'selected' : ''}>👕 Tops</option>
+              <option value="bottoms" ${item.category === 'bottoms' ? 'selected' : ''}>👖 Bottoms</option>
+              <option value="shoes" ${item.category === 'shoes' ? 'selected' : ''}>👟 Shoes</option>
+              <option value="accessories" ${item.category === 'accessories' ? 'selected' : ''}>👜 Accessories</option>
+              <option value="outerwear" ${item.category === 'outerwear' ? 'selected' : ''}>🧥 Outerwear</option>
+            </select>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Colors:</span>
+            <input type="text" class="detail-input" data-field="color" data-index="${index}" 
+                   value="${Array.isArray(item.color) ? item.color.join(', ') : item.color}">
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Materials:</span>
+            <input type="text" class="detail-input" data-field="material" data-index="${index}" 
+                   value="${Array.isArray(item.material) ? item.material.join(', ') : item.material}">
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Brand:</span>
+            <input type="text" class="detail-input" data-field="brand" data-index="${index}" 
+                   value="${item.brand || ''}">
+          </div>
+        </div>
+      `;
+      
+      resultsGrid.appendChild(itemCard);
+    });
+    
+    // Handle adding all items
+    const addAllBtn = modal.querySelector('#addAllItemsBtn');
+    addAllBtn.addEventListener('click', () => this.handleAddAnalyzedItems(modal, analysisResult.items));
+  }
+
+  async handleAddAnalyzedItems(modal, items) {
+    try {
+      // Collect updated data from the form
+      const updatedItems = items.map((item, index) => {
+        const categoryInput = modal.querySelector(`[data-field="category"][data-index="${index}"]`);
+        const colorInput = modal.querySelector(`[data-field="color"][data-index="${index}"]`);
+        const materialInput = modal.querySelector(`[data-field="material"][data-index="${index}"]`);
+        const brandInput = modal.querySelector(`[data-field="brand"][data-index="${index}"]`);
+        
+        return {
+          ...item,
+          category: categoryInput.value,
+          color: colorInput.value.split(',').map(c => c.trim()).filter(c => c),
+          material: materialInput.value.split(',').map(m => m.trim()).filter(m => m),
+          brand: brandInput.value.trim() || null
+        };
+      });
+      
+      // Add items to wardrobe
+      const addResult = await ClothingAnalysisAPI.addAnalyzedItems(updatedItems);
+      
+      if (addResult.success) {
+        const addedCount = addResult.added.length;
+        const errorCount = addResult.errors.length;
+        
+        this.showNotification(
+          `✅ Added ${addedCount} items successfully!${errorCount > 0 ? ` (${errorCount} errors)` : ''}`, 
+          'success'
+        );
+        
+        await this.loadWardrobe();
+        modal.remove();
+      } else {
+        this.showNotification(`❌ Failed to add items: ${addResult.error}`, 'error');
+      }
+      
+    } catch (error) {
+      console.error('Error adding analyzed items:', error);
+      this.showNotification('❌ Failed to add items to wardrobe', 'error');
+    }
+  }
+
+  showManualEntryForm() {
     const modal = document.createElement('div');
     modal.className = 'modal';
     modal.innerHTML = `
@@ -644,10 +1018,10 @@ class StyleAgent {
     
     // Handle form submission
     const form = document.getElementById('addItemForm');
-    form.addEventListener('submit', (e) => this.handleAddItem(e, modal));
+    form.addEventListener('submit', (e) => this.handleManualAddItem(e, modal));
   }
 
-  async handleAddItem(event, modal) {
+  async handleManualAddItem(event, modal) {
     event.preventDefault();
     
     const itemData = {
@@ -927,7 +1301,19 @@ class StyleAgent {
       const result = await OutfitsAPI.createOutfit(outfitData);
       
       if (result.success) {
-        this.showNotification('💾 Outfit saved successfully!', 'success');
+        // Give user feedback about visualization type
+        const visualizationType = visualResult.data.type || 'unknown';
+        if (visualizationType === 'photo-realistic') {
+          this.showNotification('🎨 Outfit saved with photo-realistic image!', 'success');
+        } else if (visualizationType === 'svg') {
+          if (visualResult.data.fallback) {
+            this.showNotification('💾 Outfit saved (using SVG - Stable Diffusion not available)', 'info');
+          } else {
+            this.showNotification('💾 Outfit saved with SVG visualization!', 'success');
+          }
+        } else {
+          this.showNotification('💾 Outfit saved successfully!', 'success');
+        }
         
         // Clear builder
         this.builderState.selectedItems = {
@@ -1021,7 +1407,7 @@ class StyleAgent {
     return `
       <div class="${cardClass}${lovedClass}" data-id="${outfit.id}">
         <div class="outfit-image">
-          ${outfit.image ? `<img src="${outfit.image}" alt="${outfit.name}">` : `<div class="outfit-image-placeholder">👗</div>`}
+          ${outfit.image ? `<img src="${outfit.image}" alt="${outfit.name}" onclick="app.openImageModal('${outfit.image}', '${outfit.name}')" style="cursor: pointer;">` : `<div class="outfit-image-placeholder">👗</div>`}
           ${outfit.loved ? '<div class="outfit-love-indicator">❤️</div>' : ''}
           ${outfit.aiGenerated ? '<div class="outfit-ai-badge">AI</div>' : ''}
           <div class="outfit-actions">
@@ -1072,7 +1458,7 @@ class StyleAgent {
         </div>
         <div class="modal-body">
           <div class="outfit-modal-image">
-            ${outfit.image ? `<img src="${outfit.image}" alt="${outfit.name}">` : `<div class="outfit-image-placeholder">👗</div>`}
+            ${outfit.image ? `<img src="${outfit.image}" alt="${outfit.name}" onclick="app.openImageModal('${outfit.image}', '${outfit.name}')" style="cursor: pointer;">` : `<div class="outfit-image-placeholder">👗</div>`}
           </div>
           
           <div class="outfit-modal-details">
@@ -1253,6 +1639,7 @@ class StyleAgent {
 
   async refreshProfile() {
     await this.updateAnalytics();
+    await this.loadStyleDNA();
   }
 
   async updateAnalytics() {
@@ -1292,6 +1679,177 @@ class StyleAgent {
     } else {
       styleTags.innerHTML = '<p style="color: #718096; font-size: 12px;">Style insights coming soon!</p>';
     }
+  }
+
+  // ======================================
+  // STYLE DNA FUNCTIONALITY
+  // ======================================
+
+  async loadStyleDNA() {
+    try {
+      const result = await StyleDNAAPI.getProfile();
+      
+      if (result.success && result.profile) {
+        this.renderStyleDNAProfile(result.profile, result.statistics);
+      } else {
+        this.renderStyleDNAUpload();
+      }
+    } catch (error) {
+      console.error('Error loading Style DNA:', error);
+      this.renderStyleDNAUpload();
+    }
+  }
+
+  renderStyleDNAUpload() {
+    const container = document.getElementById('styleDNAContent');
+    container.innerHTML = `
+      <div class="style-dna-upload">
+        <div class="upload-area">
+          <div class="upload-icon">📸</div>
+          <h3>Create Your Style DNA</h3>
+          <p>Upload a clear photo of yourself to generate personalized outfit visualizations</p>
+          <button class="btn-primary style-dna-upload-btn" onclick="app.uploadStyleDNAPhoto()">
+            📷 Upload Photo
+          </button>
+        </div>
+        <div class="style-dna-benefits">
+          <h4>✨ What you'll get:</h4>
+          <ul>
+            <li>🧬 Personalized appearance analysis</li>
+            <li>👤 Outfit images showing YOU wearing the clothes</li>
+            <li>🎨 Custom style recommendations</li>
+            <li>📊 Consistent appearance across all generated outfits</li>
+          </ul>
+        </div>
+      </div>
+    `;
+  }
+
+  renderStyleDNAProfile(profile, statistics) {
+    const container = document.getElementById('styleDNAContent');
+    const appearance = profile.appearance;
+    
+    container.innerHTML = `
+      <div class="style-dna-profile">
+        <div class="profile-header">
+          <div class="profile-photo">
+            <img src="data:image/${appearance.photoData?.format || 'png'};base64,${appearance.photoData?.base64 || ''}" 
+                 alt="Your Style DNA Photo" 
+                 class="dna-photo" 
+                 onclick="app.openImageModal('data:image/${appearance.photoData?.format || 'png'};base64,${appearance.photoData?.base64 || ''}', 'Your Style DNA Photo')">
+          </div>
+          <div class="profile-info">
+            <h3>🧬 Your Style DNA</h3>
+            <p class="created-date">Created ${new Date(profile.uploadedAt).toLocaleDateString()}</p>
+            <div class="confidence-score">
+              <span class="confidence-label">Analysis Confidence:</span>
+              <div class="confidence-bar">
+                <div class="confidence-fill" style="width: ${(statistics.appearanceConfidence * 100)}%"></div>
+              </div>
+              <span class="confidence-text">${Math.round(statistics.appearanceConfidence * 100)}%</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="appearance-analysis">
+          <h4>🎨 Appearance Analysis</h4>
+          <div class="appearance-grid">
+            <div class="appearance-item">
+              <span class="appearance-label">Skin Tone:</span>
+              <span class="appearance-value">${appearance.skinTone.category} (${appearance.skinTone.undertone})</span>
+              <div class="skin-color-swatch" style="background-color: ${appearance.skinTone.hex}"></div>
+            </div>
+            <div class="appearance-item">
+              <span class="appearance-label">Hair:</span>
+              <span class="appearance-value">${appearance.hair.color} ${appearance.hair.style}</span>
+            </div>
+            <div class="appearance-item">
+              <span class="appearance-label">Eyes:</span>
+              <span class="appearance-value">${appearance.eyes.color}</span>
+            </div>
+            <div class="appearance-item">
+              <span class="appearance-label">Build:</span>
+              <span class="appearance-value">${appearance.bodyType.build}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="style-dna-actions">
+          <button class="btn-secondary" onclick="app.updateStyleDNAPhoto()">
+            📷 Update Photo
+          </button>
+          <button class="btn-secondary" onclick="app.editStylePreferences()">
+            ✏️ Edit Preferences  
+          </button>
+          <button class="btn-danger" onclick="app.deleteStyleDNA()">
+            🗑️ Delete Profile
+          </button>
+        </div>
+
+        <div class="style-benefits-active">
+          <p>✅ <strong>Style DNA Active!</strong> Your outfit generations now show YOU wearing the clothes!</p>
+        </div>
+      </div>
+    `;
+  }
+
+  async uploadStyleDNAPhoto() {
+    try {
+      this.showNotification('📸 Opening photo selector...', 'info');
+      
+      const result = await StyleDNAAPI.uploadPhoto();
+      
+      if (result.success) {
+        this.showNotification('🎉 Style DNA created successfully!', 'success');
+        await this.loadStyleDNA(); // Refresh the display
+      } else {
+        this.showNotification(`❌ Upload failed: ${result.error}`, 'error');
+      }
+    } catch (error) {
+      console.error('Error uploading Style DNA photo:', error);
+      this.showNotification('❌ Upload failed. Please try again.', 'error');
+    }
+  }
+
+  async updateStyleDNAPhoto() {
+    try {
+      const result = await StyleDNAAPI.uploadPhoto();
+      
+      if (result.success) {
+        this.showNotification('✅ Photo updated successfully!', 'success');
+        await this.loadStyleDNA();
+      } else {
+        this.showNotification(`❌ Update failed: ${result.error}`, 'error');
+      }
+    } catch (error) {
+      console.error('Error updating Style DNA photo:', error);
+      this.showNotification('❌ Update failed. Please try again.', 'error');
+    }
+  }
+
+  async deleteStyleDNA() {
+    if (!confirm('Are you sure you want to delete your Style DNA profile? This cannot be undone.')) {
+      return;
+    }
+    
+    try {
+      const result = await StyleDNAAPI.deleteProfile();
+      
+      if (result.success) {
+        this.showNotification('✅ Style DNA profile deleted', 'success');
+        await this.loadStyleDNA(); // Show upload interface
+      } else {
+        this.showNotification(`❌ Delete failed: ${result.error}`, 'error');
+      }
+    } catch (error) {
+      console.error('Error deleting Style DNA:', error);
+      this.showNotification('❌ Delete failed. Please try again.', 'error');
+    }
+  }
+
+  editStylePreferences() {
+    // TODO: Implement preferences editing modal
+    this.showNotification('🚧 Preferences editing coming soon!', 'info');
   }
 
   getCategoryEmoji(category) {
@@ -1336,6 +1894,25 @@ class StyleAgent {
     } else {
       aiBtn.innerHTML = '⏳ AI Loading...';
       aiBtn.style.background = '#718096';
+    }
+  }
+
+  async checkPhotoAvailability() {
+    try {
+      const result = await PhotoAPI.isAvailable();
+      this.photoAvailable = result.success && result.available;
+      
+      if (this.photoAvailable) {
+        this.showNotification('🎨 Photo-realistic generation ready!', 'success');
+        console.log('📸 Photo-realistic outfit generation available');
+      } else {
+        console.log('📷 Photo-realistic generation not available:', result.lastError);
+        console.log('💡 To enable: Install Automatic1111 WebUI and start with --api flag');
+        console.log('ℹ️  Using SVG fallback for outfit visualization');
+      }
+    } catch (error) {
+      console.error('Error checking photo availability:', error);
+      this.photoAvailable = false;
     }
   }
 
@@ -1420,12 +1997,283 @@ class StyleAgent {
       }
     }, 4000);
   }
+
+  // ======================================
+  // IMAGE MODAL FUNCTIONALITY
+  // ======================================
+
+  openImageModal(imageSrc, imageName = 'Outfit Image') {
+    // Create modal if it doesn't exist
+    let modal = document.getElementById('image-modal');
+    if (!modal) {
+      modal = this.createImageModal();
+    }
+
+    // Set image and name
+    const modalImage = modal.querySelector('.modal-image');
+    const modalTitle = modal.querySelector('.modal-title');
+    
+    modalImage.src = imageSrc;
+    modalTitle.textContent = imageName;
+    
+    // Reset zoom and position
+    this.resetImageModalTransform();
+    
+    // Show modal
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden'; // Prevent background scrolling
+    
+    // Add keyboard event listener for Escape key
+    this.addModalKeyboardListener();
+  }
+
+  createImageModal() {
+    const modal = document.createElement('div');
+    modal.id = 'image-modal';
+    modal.className = 'image-modal';
+    modal.innerHTML = `
+      <div class="modal-overlay" onclick="app.closeImageModal()"></div>
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3 class="modal-title">Outfit Image</h3>
+          <div class="modal-controls">
+            <button class="modal-btn" onclick="app.zoomImageModal(0.8)" title="Zoom Out">🔍-</button>
+            <button class="modal-btn" onclick="app.zoomImageModal(1.25)" title="Zoom In">🔍+</button>
+            <button class="modal-btn" onclick="app.resetImageModalTransform()" title="Reset">⟲</button>
+            <button class="modal-btn close-btn" onclick="app.closeImageModal()" title="Close">✕</button>
+          </div>
+        </div>
+        <div class="modal-image-container">
+          <img class="modal-image" draggable="false">
+        </div>
+      </div>
+    `;
+
+    // Add to document
+    document.body.appendChild(modal);
+
+    // Add event listeners for dragging and zooming
+    this.setupImageModalInteractions(modal);
+
+    return modal;
+  }
+
+  setupImageModalInteractions(modal) {
+    const image = modal.querySelector('.modal-image');
+    const container = modal.querySelector('.modal-image-container');
+    
+    let isDragging = false;
+    let startX, startY, startTransformX = 0, startTransformY = 0;
+    let currentScale = 1;
+    let currentX = 0, currentY = 0;
+
+    // Mouse events for dragging
+    image.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      isDragging = true;
+      startX = e.clientX;
+      startY = e.clientY;
+      startTransformX = currentX;
+      startTransformY = currentY;
+      image.style.cursor = 'grabbing';
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      
+      const deltaX = e.clientX - startX;
+      const deltaY = e.clientY - startY;
+      
+      currentX = startTransformX + deltaX;
+      currentY = startTransformY + deltaY;
+      
+      this.updateImageTransform(image, currentScale, currentX, currentY);
+    });
+
+    document.addEventListener('mouseup', () => {
+      if (isDragging) {
+        isDragging = false;
+        image.style.cursor = 'grab';
+      }
+    });
+
+    // Wheel event for zooming
+    container.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      
+      const rect = container.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+      
+      const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
+      const newScale = Math.max(0.1, Math.min(5, currentScale * zoomFactor));
+      
+      // Zoom towards mouse position
+      const mouseX = e.clientX - centerX;
+      const mouseY = e.clientY - centerY;
+      
+      currentX = mouseX - (mouseX - currentX) * (newScale / currentScale);
+      currentY = mouseY - (mouseY - currentY) * (newScale / currentScale);
+      
+      currentScale = newScale;
+      this.updateImageTransform(image, currentScale, currentX, currentY);
+    });
+
+    // Touch events for mobile support
+    let initialDistance = 0;
+    let initialScale = 1;
+
+    container.addEventListener('touchstart', (e) => {
+      if (e.touches.length === 2) {
+        // Pinch to zoom
+        const touch1 = e.touches[0];
+        const touch2 = e.touches[1];
+        initialDistance = Math.sqrt(
+          Math.pow(touch2.clientX - touch1.clientX, 2) + 
+          Math.pow(touch2.clientY - touch1.clientY, 2)
+        );
+        initialScale = currentScale;
+      } else if (e.touches.length === 1) {
+        // Single touch drag
+        const touch = e.touches[0];
+        startX = touch.clientX;
+        startY = touch.clientY;
+        startTransformX = currentX;
+        startTransformY = currentY;
+        isDragging = true;
+      }
+    });
+
+    container.addEventListener('touchmove', (e) => {
+      e.preventDefault();
+      
+      if (e.touches.length === 2) {
+        // Pinch zoom
+        const touch1 = e.touches[0];
+        const touch2 = e.touches[1];
+        const currentDistance = Math.sqrt(
+          Math.pow(touch2.clientX - touch1.clientX, 2) + 
+          Math.pow(touch2.clientY - touch1.clientY, 2)
+        );
+        
+        const scale = Math.max(0.1, Math.min(5, initialScale * (currentDistance / initialDistance)));
+        currentScale = scale;
+        this.updateImageTransform(image, currentScale, currentX, currentY);
+      } else if (e.touches.length === 1 && isDragging) {
+        // Single touch drag
+        const touch = e.touches[0];
+        const deltaX = touch.clientX - startX;
+        const deltaY = touch.clientY - startY;
+        
+        currentX = startTransformX + deltaX;
+        currentY = startTransformY + deltaY;
+        
+        this.updateImageTransform(image, currentScale, currentX, currentY);
+      }
+    });
+
+    container.addEventListener('touchend', () => {
+      isDragging = false;
+    });
+
+    // Store transform state on modal for easy access
+    modal._transformState = {
+      get scale() { return currentScale; },
+      set scale(value) { currentScale = value; },
+      get x() { return currentX; },
+      set x(value) { currentX = value; },
+      get y() { return currentY; },
+      set y(value) { currentY = value; }
+    };
+  }
+
+  updateImageTransform(image, scale, x, y) {
+    image.style.transform = `translate(${x}px, ${y}px) scale(${scale})`;
+    image.style.cursor = scale > 1 ? 'grab' : 'default';
+  }
+
+  zoomImageModal(factor) {
+    const modal = document.getElementById('image-modal');
+    if (!modal || !modal._transformState) return;
+    
+    const image = modal.querySelector('.modal-image');
+    const state = modal._transformState;
+    
+    const newScale = Math.max(0.1, Math.min(5, state.scale * factor));
+    state.scale = newScale;
+    
+    this.updateImageTransform(image, state.scale, state.x, state.y);
+  }
+
+  resetImageModalTransform() {
+    const modal = document.getElementById('image-modal');
+    if (!modal || !modal._transformState) return;
+    
+    const image = modal.querySelector('.modal-image');
+    const state = modal._transformState;
+    
+    state.scale = 1;
+    state.x = 0;
+    state.y = 0;
+    
+    this.updateImageTransform(image, 1, 0, 0);
+  }
+
+  closeImageModal() {
+    const modal = document.getElementById('image-modal');
+    if (modal) {
+      modal.style.display = 'none';
+      document.body.style.overflow = ''; // Restore body scrolling
+      this.removeModalKeyboardListener();
+    }
+  }
+
+  addModalKeyboardListener() {
+    // Remove existing listener if any
+    this.removeModalKeyboardListener();
+    
+    // Create new listener
+    this.modalKeyboardHandler = (e) => {
+      if (e.key === 'Escape') {
+        this.closeImageModal();
+      } else if (e.key === '+' || e.key === '=') {
+        this.zoomImageModal(1.25);
+      } else if (e.key === '-') {
+        this.zoomImageModal(0.8);
+      } else if (e.key === '0') {
+        this.resetImageModalTransform();
+      }
+    };
+    
+    document.addEventListener('keydown', this.modalKeyboardHandler);
+  }
+
+  removeModalKeyboardListener() {
+    if (this.modalKeyboardHandler) {
+      document.removeEventListener('keydown', this.modalKeyboardHandler);
+      this.modalKeyboardHandler = null;
+    }
+  }
 }
+
+// Make app globally available for onclick handlers
+window.app = null;
 
 // Initialize the app when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
   window.app = new StyleAgent();
+  console.log('✅ StyleAgent app initialized:', !!window.app);
 });
 
-// Make app globally available for onclick handlers
-window.app = null;
+// Add global test function for debugging
+window.testFileDialog = async () => {
+  console.log('🧪 Testing file dialog...');
+  try {
+    const result = await ClothingAnalysisAPI.uploadMultipleImages();
+    console.log('🎯 Test result:', result);
+    return result;
+  } catch (error) {
+    console.error('❌ Test error:', error);
+    return { success: false, error: error.message };
+  }
+};
