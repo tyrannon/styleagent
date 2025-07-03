@@ -199,6 +199,14 @@ class StyleAgent {
     this.outfits = [];
     this.analytics = {};
     
+    // Session tracking
+    this.sessionId = 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    this.sessionStartTime = Date.now();
+    
+    // Enhanced filtering state
+    this.currentSort = 'newest';
+    this.currentSearch = '';
+    
     // Builder state
     this.builderState = {
       selectedItems: {
@@ -211,6 +219,9 @@ class StyleAgent {
       isSelecting: false,
       selectingCategory: null
     };
+    
+    // Initialize logging first
+    this.initializeLogging();
     
     this.initializeApp();
   }
@@ -323,9 +334,26 @@ class StyleAgent {
     closeItemDetailBtn.addEventListener('click', () => this.closeModal('itemDetailModal'));
     itemDetailBackdrop.addEventListener('click', () => this.closeModal('itemDetailModal'));
 
-    // Add Item functionality
-    const addClothingBtn = document.getElementById('addClothingBtn');
-    addClothingBtn.addEventListener('click', () => this.showAddItemModal());
+    // Unified Add Button functionality
+    const unifiedAddBtn = document.getElementById('unifiedAddBtn');
+    const unifiedAddModal = document.getElementById('unifiedAddModal');
+    const unifiedAddBackdrop = document.getElementById('unifiedAddBackdrop');
+    const closeUnifiedAddBtn = document.getElementById('closeUnifiedAddBtn');
+
+    unifiedAddBtn.addEventListener('click', () => this.openUnifiedAddModal());
+    closeUnifiedAddBtn.addEventListener('click', () => this.closeModal('unifiedAddModal'));
+    unifiedAddBackdrop.addEventListener('click', () => this.closeModal('unifiedAddModal'));
+
+    // Method selection handlers
+    const photoAnalysisMethod = document.getElementById('photoAnalysisMethod');
+    const manualEntryMethod = document.getElementById('manualEntryMethod');
+    const textOnlyMethod = document.getElementById('textOnlyMethod');
+    const styleDNAMethod = document.getElementById('styleDNAMethod');
+
+    photoAnalysisMethod.addEventListener('click', () => this.selectAddMethod('photoAnalysis'));
+    manualEntryMethod.addEventListener('click', () => this.selectAddMethod('manualEntry'));
+    textOnlyMethod.addEventListener('click', () => this.selectAddMethod('textOnly'));
+    styleDNAMethod.addEventListener('click', () => this.selectAddMethod('styleDNA'));
   }
 
   openModal(modalId) {
@@ -348,15 +376,229 @@ class StyleAgent {
     }, 300);
   }
 
+  // ==================== UNIFIED ADD MODAL ====================
+
+  async openUnifiedAddModal() {
+    // Check vision capability for status display
+    const visionCheck = await ClothingAnalysisAPI.checkVisionCapability();
+    
+    // Update vision status in the modal
+    const visionStatus = document.getElementById('visionStatus');
+    if (visionStatus) {
+      if (visionCheck.available) {
+        visionStatus.textContent = '✅ Vision AI Available';
+        visionStatus.className = 'method-status available';
+      } else {
+        visionStatus.textContent = '⚠️ Vision AI Unavailable';
+        visionStatus.className = 'method-status unavailable';
+      }
+    }
+    
+    this.openModal('unifiedAddModal');
+  }
+
+  async selectAddMethod(method) {
+    console.log('🎯 Selected add method:', method);
+    
+    // Close the unified add modal
+    this.closeModal('unifiedAddModal');
+    
+    // Route to appropriate method
+    switch(method) {
+      case 'photoAnalysis':
+        await this.showMultiImageUpload();
+        break;
+      case 'manualEntry':
+        this.showManualEntryModal();
+        break;
+      case 'textOnly':
+        this.showTextOnlyEntryModal();
+        break;
+      case 'styleDNA':
+        this.uploadStyleDNAPhoto();
+        break;
+      default:
+        console.warn('Unknown add method:', method);
+    }
+  }
+
+  showManualEntryModal() {
+    // For now, use the existing multi-image upload but focus on manual entry
+    console.log('🔧 Manual entry not fully implemented yet, using photo analysis');
+    this.showMultiImageUpload();
+  }
+
+  showTextOnlyEntryModal() {
+    console.log('📝 Showing text-only entry modal');
+    
+    const modal = document.createElement('div');
+    modal.className = 'modal text-entry-modal';
+    modal.innerHTML = `
+      <div class="modal-backdrop"></div>
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>📝 Quick Text Entry</h3>
+          <button class="close-btn" onclick="this.closest('.modal').remove()">×</button>
+        </div>
+        <div class="modal-body">
+          <div class="text-entry-form">
+            <h4>✨ Describe your item</h4>
+            <p>Just type what you have - AI will help fill in the details!</p>
+            
+            <textarea id="textEntryDescription" placeholder="e.g., 'black leather jacket from Zara, size M, worn twice'" 
+                      rows="4" style="width: 100%; padding: 12px; border-radius: 8px; border: 2px solid #e2e8f0; resize: vertical;"></textarea>
+            
+            <div class="entry-options" style="margin-top: 16px;">
+              <label style="display: flex; align-items: center; gap: 8px;">
+                <input type="checkbox" id="autoCategories" checked>
+                <span>Auto-detect category and details</span>
+              </label>
+            </div>
+            
+            <div class="modal-actions" style="margin-top: 24px; display: flex; gap: 12px; justify-content: flex-end;">
+              <button class="btn-secondary" onclick="this.closest('.modal').remove()">Cancel</button>
+              <button class="btn-primary" onclick="app.processTextEntry()">✨ Add Item</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(modal);
+    modal.style.display = 'flex';
+    
+    // Focus the textarea
+    setTimeout(() => {
+      document.getElementById('textEntryDescription').focus();
+    }, 300);
+  }
+
+  async processTextEntry() {
+    const description = document.getElementById('textEntryDescription').value.trim();
+    const autoCategories = document.getElementById('autoCategories').checked;
+    
+    if (!description) {
+      this.showNotification('Please describe your item first!', 'warning');
+      return;
+    }
+    
+    console.log('🔄 Processing text entry:', description);
+    
+    // Close the modal
+    document.querySelector('.text-entry-modal').remove();
+    
+    // For now, create a basic item - this would be enhanced with AI parsing
+    const itemData = {
+      name: description.slice(0, 50), // First 50 chars as name
+      category: autoCategories ? this.guessCategory(description) : 'tops',
+      color: autoCategories ? this.guessColors(description) : ['unknown'],
+      material: autoCategories ? this.guessMaterials(description) : ['unknown'],
+      brand: autoCategories ? this.guessBrand(description) : '',
+      size: autoCategories ? this.guessSize(description) : '',
+      notes: description,
+      condition: 'good',
+      favorite: false,
+      timesWorn: 0,
+      lastWorn: null,
+      tags: []
+    };
+    
+    try {
+      const result = await WardrobeAPI.addItem(itemData);
+      if (result.success) {
+        this.showNotification('✅ Item added successfully!', 'success');
+        await this.refreshWardrobe();
+      } else {
+        this.showNotification('❌ Failed to add item', 'error');
+      }
+    } catch (error) {
+      console.error('Error adding text item:', error);
+      this.showNotification('❌ Error adding item', 'error');
+    }
+  }
+
+  // Simple text parsing helpers (could be enhanced with AI)
+  guessCategory(text) {
+    const categories = {
+      'jacket|coat|blazer': 'outerwear',
+      'shirt|blouse|top|tee|tank': 'tops',
+      'pants|jeans|trousers|shorts|skirt|dress': 'bottoms',
+      'shoes|boots|sneakers|heels|sandals': 'shoes',
+      'bag|purse|belt|hat|necklace|watch': 'accessories'
+    };
+    
+    for (const [pattern, category] of Object.entries(categories)) {
+      if (new RegExp(pattern, 'i').test(text)) {
+        return category;
+      }
+    }
+    return 'tops'; // default
+  }
+
+  guessColors(text) {
+    const colors = ['black', 'white', 'blue', 'red', 'green', 'yellow', 'purple', 'pink', 'brown', 'gray', 'navy', 'beige'];
+    const foundColors = colors.filter(color => new RegExp(color, 'i').test(text));
+    return foundColors.length > 0 ? foundColors : ['unknown'];
+  }
+
+  guessMaterials(text) {
+    const materials = ['cotton', 'leather', 'denim', 'wool', 'silk', 'polyester', 'linen', 'cashmere'];
+    const foundMaterials = materials.filter(material => new RegExp(material, 'i').test(text));
+    return foundMaterials.length > 0 ? foundMaterials : ['unknown'];
+  }
+
+  guessBrand(text) {
+    const brands = ['zara', 'h&m', 'uniqlo', 'nike', 'adidas', 'levi', 'gap', 'banana republic'];
+    const foundBrand = brands.find(brand => new RegExp(brand, 'i').test(text));
+    return foundBrand ? foundBrand.charAt(0).toUpperCase() + foundBrand.slice(1) : '';
+  }
+
+  guessSize(text) {
+    const sizeMatch = text.match(/\b(xs|s|m|l|xl|xxl|\d+)\b/i);
+    return sizeMatch ? sizeMatch[0].toUpperCase() : '';
+  }
+
   // ==================== WARDROBE TAB ====================
   
   initializeWardrobe() {
-    // Filters
+    // Enhanced Filters
+    const sortFilter = document.getElementById('sortFilter');
     const categoryFilter = document.getElementById('categoryFilter');
     const laundryFilter = document.getElementById('laundryFilter');
+    const searchFilter = document.getElementById('searchFilter');
+    const clearSearchBtn = document.getElementById('clearSearchBtn');
 
-    categoryFilter.addEventListener('change', () => this.applyFilters());
-    laundryFilter.addEventListener('change', () => this.applyFilters());
+    // Initialize current filters and sorting
+    this.currentSort = 'newest';
+    this.currentSearch = '';
+
+    // Event listeners
+    sortFilter.addEventListener('change', () => {
+      this.currentSort = sortFilter.value;
+      this.applyFiltersAndSort();
+    });
+    
+    categoryFilter.addEventListener('change', () => this.applyFiltersAndSort());
+    laundryFilter.addEventListener('change', () => this.applyFiltersAndSort());
+    
+    // Search with debounce
+    let searchTimeout;
+    searchFilter.addEventListener('input', (e) => {
+      clearTimeout(searchTimeout);
+      searchTimeout = setTimeout(() => {
+        this.currentSearch = e.target.value.trim();
+        this.applyFiltersAndSort();
+        this.updateClearSearchButton();
+      }, 300);
+    });
+    
+    // Clear search button
+    clearSearchBtn.addEventListener('click', () => {
+      searchFilter.value = '';
+      this.currentSearch = '';
+      this.applyFiltersAndSort();
+      this.updateClearSearchButton();
+    });
 
     // View toggle
     const viewButtons = document.querySelectorAll('.view-btn');
@@ -364,6 +606,9 @@ class StyleAgent {
       btn.addEventListener('click', (e) => this.switchView(e.target.dataset.view));
     });
 
+    // Initialize clear search button state
+    this.updateClearSearchButton();
+    
     // Add debug functionality
     this.addDebugFunctionality();
   }
@@ -396,43 +641,70 @@ class StyleAgent {
   }
 
   async loadWardrobe() {
-    try {
-      this.showLoading('Loading wardrobe...');
-      const result = await WardrobeAPI.getItems({ filters: this.currentFilters });
-      
-      if (result.success) {
-        this.currentItems = result.data || [];
-        this.renderWardrobe();
-        this.updateWardrobeStats();
-      } else {
-        console.error('Failed to load wardrobe:', result.error);
-        this.showNotification(`❌ Failed to load wardrobe: ${result.error}`, 'error');
-      }
-    } catch (error) {
-      console.error('Error loading wardrobe:', error);
-      this.showNotification('❌ Failed to load wardrobe', 'error');
-    }
+    // Use the new enhanced filtering method
+    await this.applyFiltersAndSort();
   }
 
   async refreshWardrobe() {
     await this.loadWardrobe();
   }
 
+  async applyFiltersAndSort() {
+    const startTime = Date.now();
+    
+    try {
+      this.showLoading('Filtering wardrobe...');
+      
+      // Log the action
+      this.logAction('wardrobeActions', 'filter', {
+        sort: this.currentSort,
+        search: this.currentSearch,
+        filters: this.getCurrentFilters()
+      });
+      
+      // Get all items first
+      const result = await WardrobeAPI.getItems();
+      
+      if (result.success) {
+        let items = result.data || [];
+        const originalCount = items.length;
+        
+        // Apply filters
+        items = this.filterItems(items);
+        
+        // Apply sorting
+        items = this.sortItems(items);
+        
+        this.currentItems = items;
+        this.renderWardrobe();
+        this.updateWardrobeStats();
+        
+        // Log performance and results
+        this.logPerformance('search', startTime);
+        this.logAction('wardrobeActions', 'filterComplete', {
+          originalCount,
+          filteredCount: items.length,
+          sort: this.currentSort,
+          duration: Date.now() - startTime
+        });
+        
+        console.log(`🔍 Applied filters and sort: ${items.length} items displayed`);
+        console.log(`📊 Sort: ${this.currentSort}, Search: "${this.currentSearch}", Filters:`, this.getCurrentFilters());
+      } else {
+        this.logError('wardrobeActions', 'filter', new Error(result.error));
+        console.error('Failed to load wardrobe:', result.error);
+        this.showNotification(`❌ Failed to load wardrobe: ${result.error}`, 'error');
+      }
+    } catch (error) {
+      this.logError('wardrobeActions', 'filter', error);
+      console.error('Error applying filters:', error);
+      this.showNotification('❌ Failed to apply filters', 'error');
+    }
+  }
+  
+  // Legacy method for backward compatibility
   async applyFilters() {
-    const categoryFilter = document.getElementById('categoryFilter');
-    const laundryFilter = document.getElementById('laundryFilter');
-
-    this.currentFilters = {};
-    
-    if (categoryFilter.value) {
-      this.currentFilters.category = categoryFilter.value;
-    }
-    
-    if (laundryFilter.value) {
-      this.currentFilters.laundryStatus = laundryFilter.value;
-    }
-
-    await this.loadWardrobe();
+    await this.applyFiltersAndSort();
   }
 
   renderWardrobe() {
@@ -443,7 +715,7 @@ class StyleAgent {
         <div class="empty-state">
           <h3>✨ Your wardrobe awaits</h3>
           <p>Add some clothing items to get started, or load sample data to explore StyleAgent!</p>
-          <button class="btn-primary" onclick="app.showAddItemModal()">+ Add First Item</button>
+          <button class="btn-primary" onclick="app.openUnifiedAddModal()">✨ Add First Item</button>
         </div>
       `;
       return;
@@ -543,7 +815,107 @@ class StyleAgent {
     document.getElementById('dirtyItems').textContent = `${dirtyItems} dirty`;
   }
 
+  // ==================== ENHANCED FILTERING & SORTING ====================
+
+  filterItems(items) {
+    const categoryFilter = document.getElementById('categoryFilter');
+    const laundryFilter = document.getElementById('laundryFilter');
+    
+    let filtered = [...items];
+    
+    // Category filter
+    if (categoryFilter.value) {
+      filtered = filtered.filter(item => item.category === categoryFilter.value);
+    }
+    
+    // Laundry status filter
+    if (laundryFilter.value) {
+      filtered = filtered.filter(item => (item.laundryStatus || 'clean') === laundryFilter.value);
+    }
+    
+    // Search filter
+    if (this.currentSearch) {
+      const searchTerm = this.currentSearch.toLowerCase();
+      filtered = filtered.filter(item => 
+        item.name.toLowerCase().includes(searchTerm) ||
+        (item.brand && item.brand.toLowerCase().includes(searchTerm)) ||
+        item.category.toLowerCase().includes(searchTerm) ||
+        (item.color && item.color.some(color => color.toLowerCase().includes(searchTerm))) ||
+        (item.material && item.material.some(material => material.toLowerCase().includes(searchTerm))) ||
+        (item.tags && item.tags.some(tag => tag.toLowerCase().includes(searchTerm))) ||
+        (item.notes && item.notes.toLowerCase().includes(searchTerm))
+      );
+    }
+    
+    return filtered;
+  }
+  
+  sortItems(items) {
+    const sorted = [...items];
+    
+    switch (this.currentSort) {
+      case 'newest':
+        return sorted.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+        
+      case 'oldest':
+        return sorted.sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
+        
+      case 'name':
+        return sorted.sort((a, b) => a.name.localeCompare(b.name));
+        
+      case 'name-desc':
+        return sorted.sort((a, b) => b.name.localeCompare(a.name));
+        
+      case 'most-worn':
+        return sorted.sort((a, b) => (b.timesWorn || 0) - (a.timesWorn || 0));
+        
+      case 'least-worn':
+        return sorted.sort((a, b) => (a.timesWorn || 0) - (b.timesWorn || 0));
+        
+      case 'favorites':
+        return sorted.sort((a, b) => {
+          if (a.favorite && !b.favorite) return -1;
+          if (!a.favorite && b.favorite) return 1;
+          // If both are favorites or both are not, sort by newest
+          return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+        });
+        
+      case 'recent-worn':
+        return sorted.sort((a, b) => {
+          const aDate = new Date(a.lastWorn || 0);
+          const bDate = new Date(b.lastWorn || 0);
+          return bDate - aDate;
+        });
+        
+      default:
+        return sorted;
+    }
+  }
+  
+  getCurrentFilters() {
+    const categoryFilter = document.getElementById('categoryFilter');
+    const laundryFilter = document.getElementById('laundryFilter');
+    
+    const filters = {};
+    if (categoryFilter.value) filters.category = categoryFilter.value;
+    if (laundryFilter.value) filters.laundryStatus = laundryFilter.value;
+    if (this.currentSearch) filters.search = this.currentSearch;
+    
+    return filters;
+  }
+  
+  updateClearSearchButton() {
+    const clearSearchBtn = document.getElementById('clearSearchBtn');
+    const searchFilter = document.getElementById('searchFilter');
+    
+    if (clearSearchBtn && searchFilter) {
+      clearSearchBtn.style.display = searchFilter.value ? 'block' : 'none';
+    }
+  }
+
   switchView(view) {
+    this.logAction('wardrobeActions', 'viewMode', { view, previousView: this.currentView || 'grid' });
+    
     const buttons = document.querySelectorAll('.view-btn');
     buttons.forEach(btn => btn.classList.remove('active'));
     event.target.classList.add('active');
@@ -551,8 +923,10 @@ class StyleAgent {
     const grid = document.getElementById('clothingGrid');
     if (view === 'list') {
       grid.classList.add('list-view');
+      this.currentView = 'list';
     } else {
       grid.classList.remove('list-view');
+      this.currentView = 'grid';
     }
   }
 
@@ -2414,8 +2788,8 @@ class StyleAgent {
                 <span class="drop-icon">📷</span>
                 <p class="drop-text">Drag & drop images here</p>
                 <p class="drop-subtext">or</p>
-                <button class="btn-primary" id="addClothingBtn">
-                  📸 Add Clothing
+                <button class="btn-primary" onclick="app.openUnifiedAddModal()">
+                  ✨ Add Clothing
                 </button>
               </div>
             </div>
@@ -2432,15 +2806,7 @@ class StyleAgent {
     setTimeout(() => {
       this.initializeDragAndDrop();
       
-      // Initialize add clothing button
-      const addClothingBtn = document.getElementById('addClothingBtn');
-      if (addClothingBtn && !addClothingBtn.hasListener) {
-        addClothingBtn.hasListener = true;
-        addClothingBtn.addEventListener('click', () => {
-          console.log('📸 Add Clothing button clicked');
-          this.showMultiImageUploadModal();
-        });
-      }
+      // Add clothing button now uses unified add modal via onclick
     }, 100);
   }
 
@@ -3313,6 +3679,11 @@ class StyleAgent {
   // IMAGE MODAL FUNCTIONALITY
   // ======================================
 
+  // Bridge function for outfit modals to open fullscreen image view
+  showImageModal(imageSrc, imageName = 'Generated Outfit') {
+    this.openImageModal(imageSrc, imageName);
+  }
+
   openImageModal(imageSrc, imageName = 'Outfit Image') {
     // Create modal if it doesn't exist
     let modal = document.getElementById('image-modal');
@@ -3327,12 +3698,32 @@ class StyleAgent {
     modalImage.src = imageSrc;
     modalTitle.textContent = imageName;
     
+    // Start with contain mode (full image visible) by default
+    modalImage.classList.add('contain-mode');
+    
     // Reset zoom and position
     this.resetImageModalTransform();
     
-    // Show modal
+    // Show modal with beautiful fade-in
     modal.style.display = 'flex';
     document.body.style.overflow = 'hidden'; // Prevent background scrolling
+    
+    // Auto-hide help text after 4 seconds for cleaner viewing
+    const imageInfo = modal.querySelector('.image-info');
+    setTimeout(() => {
+      if (imageInfo) {
+        imageInfo.style.opacity = '0';
+        // Show again on mouse move
+        const showInfoOnMove = () => {
+          imageInfo.style.opacity = '0.9';
+          clearTimeout(this.hideInfoTimeout);
+          this.hideInfoTimeout = setTimeout(() => {
+            imageInfo.style.opacity = '0';
+          }, 3000);
+        };
+        modal.addEventListener('mousemove', showInfoOnMove, { once: true });
+      }
+    }, 4000);
     
     // Add keyboard event listener for Escape key
     this.addModalKeyboardListener();
@@ -3344,18 +3735,37 @@ class StyleAgent {
     modal.className = 'image-modal';
     modal.innerHTML = `
       <div class="modal-overlay" onclick="app.closeImageModal()"></div>
-      <div class="modal-content">
-        <div class="modal-header">
-          <h3 class="modal-title">Outfit Image</h3>
+      <div class="modal-content fullscreen-content">
+        <!-- Enhanced Header with Beautiful Styling -->
+        <div class="modal-header fullscreen-header">
+          <h3 class="modal-title">✨ Your Beautiful Outfit</h3>
           <div class="modal-controls">
-            <button class="modal-btn" onclick="app.zoomImageModal(0.8)" title="Zoom Out">🔍-</button>
-            <button class="modal-btn" onclick="app.zoomImageModal(1.25)" title="Zoom In">🔍+</button>
-            <button class="modal-btn" onclick="app.resetImageModalTransform()" title="Reset">⟲</button>
-            <button class="modal-btn close-btn" onclick="app.closeImageModal()" title="Close">✕</button>
+            <button class="modal-control-btn" onclick="app.toggleImageFit()" title="Toggle Fit Mode">
+              <span>📐</span>
+            </button>
+            <button class="modal-control-btn" onclick="app.zoomImageModal(0.8)" title="Zoom Out">
+              <span>🔍-</span>
+            </button>
+            <button class="modal-control-btn" onclick="app.zoomImageModal(1.25)" title="Zoom In">
+              <span>🔍+</span>
+            </button>
+            <button class="modal-control-btn" onclick="app.resetImageModalTransform()" title="Reset View">
+              <span>⟲</span>
+            </button>
+            <button class="modal-control-btn close-btn" onclick="app.closeImageModal()" title="Close">
+              <span>✕</span>
+            </button>
           </div>
         </div>
-        <div class="modal-image-container">
-          <img class="modal-image" draggable="false">
+        
+        <!-- Fullscreen Image Container -->
+        <div class="modal-image-container fullscreen-container">
+          <img class="modal-image fullscreen-image" draggable="false">
+          
+          <!-- Image Info Overlay -->
+          <div class="image-info">
+            <span class="image-hint">🖱️ Drag to pan • 🖱️ Scroll to zoom • 📐 Click fit button to fill screen • ⌨️ ESC to close</span>
+          </div>
         </div>
       </div>
     `;
@@ -3373,85 +3783,70 @@ class StyleAgent {
     const image = modal.querySelector('.modal-image');
     const container = modal.querySelector('.modal-image-container');
     
+    // Zoom and pan state
+    let scale = 1;
+    let translateX = 0;
+    let translateY = 0;
     let isDragging = false;
-    let startX, startY, startTransformX = 0, startTransformY = 0;
-    let currentScale = 1;
-    let currentX = 0, currentY = 0;
+    let lastPanX = 0;
+    let lastPanY = 0;
 
-    // Mouse events for dragging
-    image.addEventListener('mousedown', (e) => {
-      e.preventDefault();
-      isDragging = true;
-      startX = e.clientX;
-      startY = e.clientY;
-      startTransformX = currentX;
-      startTransformY = currentY;
-      image.style.cursor = 'grabbing';
-    });
+    // Apply transform to image
+    const updateTransform = () => {
+      image.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+    };
 
-    document.addEventListener('mousemove', (e) => {
-      if (!isDragging) return;
-      
-      const deltaX = e.clientX - startX;
-      const deltaY = e.clientY - startY;
-      
-      currentX = startTransformX + deltaX;
-      currentY = startTransformY + deltaY;
-      
-      this.updateImageTransform(image, currentScale, currentX, currentY);
-    });
+    // Reset transform
+    this.resetImageModalTransform = () => {
+      scale = 1;
+      translateX = 0;
+      translateY = 0;
+      updateTransform();
+    };
 
-    document.addEventListener('mouseup', () => {
-      if (isDragging) {
-        isDragging = false;
-        image.style.cursor = 'grab';
+    // Zoom functions for buttons
+    this.zoomImageModal = (factor) => {
+      const newScale = scale * factor;
+      if (newScale >= 0.5 && newScale <= 5) {
+        scale = newScale;
+        updateTransform();
       }
-    });
+    };
 
-    // Wheel event for zooming
+    // 🖱️ SCROLL TO ZOOM
     container.addEventListener('wheel', (e) => {
       e.preventDefault();
       
-      const rect = container.getBoundingClientRect();
-      const centerX = rect.left + rect.width / 2;
-      const centerY = rect.top + rect.height / 2;
+      const zoomIntensity = 0.1;
+      const delta = e.deltaY > 0 ? -zoomIntensity : zoomIntensity;
+      const newScale = scale + delta;
       
-      const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
-      const newScale = Math.max(0.1, Math.min(5, currentScale * zoomFactor));
-      
-      // Zoom towards mouse position
-      const mouseX = e.clientX - centerX;
-      const mouseY = e.clientY - centerY;
-      
-      currentX = mouseX - (mouseX - currentX) * (newScale / currentScale);
-      currentY = mouseY - (mouseY - currentY) * (newScale / currentScale);
-      
-      currentScale = newScale;
-      this.updateImageTransform(image, currentScale, currentX, currentY);
+      if (newScale >= 0.5 && newScale <= 5) {
+        scale = newScale;
+        updateTransform();
+      }
     });
 
-    // Touch events for mobile support
+    // 📱 PINCH TO ZOOM (Touch)
     let initialDistance = 0;
     let initialScale = 1;
 
     container.addEventListener('touchstart', (e) => {
       if (e.touches.length === 2) {
-        // Pinch to zoom
+        // Two finger pinch
         const touch1 = e.touches[0];
         const touch2 = e.touches[1];
         initialDistance = Math.sqrt(
-          Math.pow(touch2.clientX - touch1.clientX, 2) + 
+          Math.pow(touch2.clientX - touch1.clientX, 2) +
           Math.pow(touch2.clientY - touch1.clientY, 2)
         );
-        initialScale = currentScale;
+        initialScale = scale;
       } else if (e.touches.length === 1) {
-        // Single touch drag
-        const touch = e.touches[0];
-        startX = touch.clientX;
-        startY = touch.clientY;
-        startTransformX = currentX;
-        startTransformY = currentY;
+        // Single finger drag setup
         isDragging = true;
+        lastPanX = e.touches[0].clientX;
+        lastPanY = e.touches[0].clientY;
+        image.style.cursor = 'grabbing';
       }
     });
 
@@ -3463,71 +3858,86 @@ class StyleAgent {
         const touch1 = e.touches[0];
         const touch2 = e.touches[1];
         const currentDistance = Math.sqrt(
-          Math.pow(touch2.clientX - touch1.clientX, 2) + 
+          Math.pow(touch2.clientX - touch1.clientX, 2) +
           Math.pow(touch2.clientY - touch1.clientY, 2)
         );
         
-        const scale = Math.max(0.1, Math.min(5, initialScale * (currentDistance / initialDistance)));
-        currentScale = scale;
-        this.updateImageTransform(image, currentScale, currentX, currentY);
+        const newScale = initialScale * (currentDistance / initialDistance);
+        if (newScale >= 0.5 && newScale <= 5) {
+          scale = newScale;
+          updateTransform();
+        }
       } else if (e.touches.length === 1 && isDragging) {
-        // Single touch drag
-        const touch = e.touches[0];
-        const deltaX = touch.clientX - startX;
-        const deltaY = touch.clientY - startY;
+        // Single finger pan
+        const deltaX = e.touches[0].clientX - lastPanX;
+        const deltaY = e.touches[0].clientY - lastPanY;
         
-        currentX = startTransformX + deltaX;
-        currentY = startTransformY + deltaY;
+        translateX += deltaX;
+        translateY += deltaY;
         
-        this.updateImageTransform(image, currentScale, currentX, currentY);
+        lastPanX = e.touches[0].clientX;
+        lastPanY = e.touches[0].clientY;
+        
+        updateTransform();
       }
     });
 
     container.addEventListener('touchend', () => {
       isDragging = false;
+      image.style.cursor = 'grab';
     });
 
-    // Store transform state on modal for easy access
-    modal._transformState = {
-      get scale() { return currentScale; },
-      set scale(value) { currentScale = value; },
-      get x() { return currentX; },
-      set x(value) { currentX = value; },
-      get y() { return currentY; },
-      set y(value) { currentY = value; }
-    };
+    // 🖱️ MOUSE DRAG TO PAN
+    image.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      isDragging = true;
+      lastPanX = e.clientX;
+      lastPanY = e.clientY;
+      image.style.cursor = 'grabbing';
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      
+      const deltaX = e.clientX - lastPanX;
+      const deltaY = e.clientY - lastPanY;
+      
+      translateX += deltaX;
+      translateY += deltaY;
+      
+      lastPanX = e.clientX;
+      lastPanY = e.clientY;
+      
+      updateTransform();
+    });
+
+    document.addEventListener('mouseup', () => {
+      isDragging = false;
+      image.style.cursor = 'grab';
+    });
+
+    // Initialize transform
+    updateTransform();
   }
 
-  updateImageTransform(image, scale, x, y) {
-    image.style.transform = `translate(${x}px, ${y}px) scale(${scale})`;
-    image.style.cursor = scale > 1 ? 'grab' : 'default';
-  }
-
-  zoomImageModal(factor) {
+  // Toggle between different image fit modes
+  toggleImageFit() {
     const modal = document.getElementById('image-modal');
-    if (!modal || !modal._transformState) return;
+    if (!modal) return;
     
-    const image = modal.querySelector('.modal-image');
-    const state = modal._transformState;
+    const image = modal.querySelector('.fullscreen-image');
+    if (!image) return;
     
-    const newScale = Math.max(0.1, Math.min(5, state.scale * factor));
-    state.scale = newScale;
-    
-    this.updateImageTransform(image, state.scale, state.x, state.y);
-  }
-
-  resetImageModalTransform() {
-    const modal = document.getElementById('image-modal');
-    if (!modal || !modal._transformState) return;
-    
-    const image = modal.querySelector('.modal-image');
-    const state = modal._transformState;
-    
-    state.scale = 1;
-    state.x = 0;
-    state.y = 0;
-    
-    this.updateImageTransform(image, 1, 0, 0);
+    // Toggle between contain and cover modes
+    if (image.classList.contains('contain-mode')) {
+      // Switch to cover mode (fill screen, may crop)
+      image.classList.remove('contain-mode');
+      this.showNotification('📐 Fill Screen Mode (may crop edges)', 'info');
+    } else {
+      // Switch to contain mode (show full image, may have black bars)
+      image.classList.add('contain-mode');
+      this.showNotification('📐 Fit Full Image Mode (may show black bars)', 'info');
+    }
   }
 
   closeImageModal() {
@@ -3564,6 +3974,183 @@ class StyleAgent {
       document.removeEventListener('keydown', this.modalKeyboardHandler);
       this.modalKeyboardHandler = null;
     }
+  }
+
+  // ==================== COMPREHENSIVE LOGGING SYSTEM ====================
+
+  initializeLogging() {
+    this.logHistory = [];
+    this.featureUsage = {
+      wardrobeActions: { sort: 0, filter: 0, search: 0, viewMode: 0 },
+      itemInteractions: { add: 0, edit: 0, delete: 0, favorite: 0, worn: 0 },
+      outfitGeneration: { create: 0, save: 0, favorite: 0 },
+      aiInteractions: { chat: 0, suggest: 0, analyze: 0 },
+      uploads: { single: 0, batch: 0, dragDrop: 0 }
+    };
+    this.performanceMetrics = {
+      loadTimes: [],
+      renderTimes: [],
+      searchTimes: []
+    };
+    
+    // Set up periodic logging
+    setInterval(() => this.logPeriodicStats(), 30000); // Every 30 seconds
+    
+    console.log('📊 Comprehensive logging system initialized');
+  }
+
+  logAction(category, action, details = {}) {
+    const logEntry = {
+      timestamp: new Date().toISOString(),
+      category,
+      action,
+      details,
+      sessionId: this.sessionId || 'unknown'
+    };
+    
+    this.logHistory.push(logEntry);
+    
+    // Track feature usage
+    if (this.featureUsage[category] && this.featureUsage[category][action] !== undefined) {
+      this.featureUsage[category][action]++;
+    }
+    
+    // Console output with emoji for visibility
+    const emoji = this.getLogEmoji(category, action);
+    console.log(`${emoji} [${category}:${action}]`, details);
+    
+    // Keep log history reasonable size
+    if (this.logHistory.length > 1000) {
+      this.logHistory = this.logHistory.slice(-500);
+    }
+  }
+
+  getLogEmoji(category, action) {
+    const emojiMap = {
+      wardrobeActions: { sort: '🔄', filter: '🔍', search: '🔎', viewMode: '📋' },
+      itemInteractions: { add: '➕', edit: '✏️', delete: '🗑️', favorite: '⭐', worn: '👕' },
+      outfitGeneration: { create: '✨', save: '💾', favorite: '❤️' },
+      aiInteractions: { chat: '🤖', suggest: '💡', analyze: '🧠' },
+      uploads: { single: '📸', batch: '📷', dragDrop: '🎯' },
+      performance: { load: '⚡', render: '🎨', search: '🔍' },
+      errors: { api: '❌', ui: '⚠️', network: '🌐' }
+    };
+    
+    return emojiMap[category]?.[action] || '📝';
+  }
+
+  logPerformance(action, startTime, endTime = Date.now()) {
+    const duration = endTime - startTime;
+    const category = 'performance';
+    
+    this.logAction(category, action, { duration, startTime, endTime });
+    
+    // Track performance metrics
+    if (this.performanceMetrics[`${action}Times`]) {
+      this.performanceMetrics[`${action}Times`].push(duration);
+      
+      // Keep only last 50 measurements
+      if (this.performanceMetrics[`${action}Times`].length > 50) {
+        this.performanceMetrics[`${action}Times`] = this.performanceMetrics[`${action}Times`].slice(-25);
+      }
+    }
+    
+    // Warn about slow operations
+    if (duration > 3000) {
+      console.warn(`⚠️ Slow ${action}: ${duration}ms`);
+    }
+  }
+
+  logError(category, action, error, context = {}) {
+    const errorDetails = {
+      message: error.message,
+      stack: error.stack,
+      context,
+      timestamp: new Date().toISOString()
+    };
+    
+    this.logAction('errors', category, errorDetails);
+    console.error(`❌ Error in ${category}:${action}:`, error, context);
+  }
+
+  logWarning(category, action, message, details = {}) {
+    this.logAction('warnings', category, { message, ...details });
+    console.warn(`⚠️ Warning in ${category}:${action}: ${message}`, details);
+  }
+
+  logPeriodicStats() {
+    const stats = {
+      totalActions: this.logHistory.length,
+      featureUsage: this.featureUsage,
+      averagePerformance: this.calculateAveragePerformance(),
+      timestamp: new Date().toISOString()
+    };
+    
+    console.log('📊 Periodic Stats:', stats);
+    return stats;
+  }
+
+  calculateAveragePerformance() {
+    const averages = {};
+    
+    Object.keys(this.performanceMetrics).forEach(key => {
+      const times = this.performanceMetrics[key];
+      if (times.length > 0) {
+        averages[key] = {
+          average: Math.round(times.reduce((a, b) => a + b, 0) / times.length),
+          min: Math.min(...times),
+          max: Math.max(...times),
+          samples: times.length
+        };
+      }
+    });
+    
+    return averages;
+  }
+
+  exportLogs() {
+    const exportData = {
+      sessionId: this.sessionId,
+      exportTime: new Date().toISOString(),
+      logHistory: this.logHistory,
+      featureUsage: this.featureUsage,
+      performanceMetrics: this.performanceMetrics,
+      summary: {
+        totalActions: this.logHistory.length,
+        sessionDuration: Date.now() - (this.sessionStartTime || Date.now()),
+        averagePerformance: this.calculateAveragePerformance()
+      }
+    };
+    
+    // Create downloadable file
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `styleagent-logs-${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    
+    console.log('📄 Logs exported successfully');
+    return exportData;
+  }
+
+  clearLogs() {
+    this.logHistory = [];
+    this.featureUsage = {
+      wardrobeActions: { sort: 0, filter: 0, search: 0, viewMode: 0 },
+      itemInteractions: { add: 0, edit: 0, delete: 0, favorite: 0, worn: 0 },
+      outfitGeneration: { create: 0, save: 0, favorite: 0 },
+      aiInteractions: { chat: 0, suggest: 0, analyze: 0 },
+      uploads: { single: 0, batch: 0, dragDrop: 0 }
+    };
+    this.performanceMetrics = {
+      loadTimes: [],
+      renderTimes: [],
+      searchTimes: []
+    };
+    
+    console.log('🧹 Logs cleared');
   }
 }
 

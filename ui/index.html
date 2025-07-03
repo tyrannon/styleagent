@@ -12,7 +12,7 @@
       <h1>StyleAgent</h1>
       <div class="header-actions">
         <button class="btn-ai" id="suggestOutfitBtn">🤖 AI Suggest</button>
-        <button class="btn-primary" id="addClothingBtn">+ Add Item</button>
+        <button class="unified-add-btn" id="unifiedAddBtn">+</button>
       </div>
     </header>
 
@@ -240,9 +240,26 @@
           </div>
         </div>
         
-        <!-- Filters Bar -->
+        <!-- Enhanced Filters Bar -->
         <div class="filters-bar">
+          <!-- Sorting Options -->
+          <div class="filter-group sort-group">
+            <label class="filter-label">Sort by:</label>
+            <select id="sortFilter">
+              <option value="newest">🆕 Newest First</option>
+              <option value="oldest">⏰ Oldest First</option>
+              <option value="name">🔤 Name A-Z</option>
+              <option value="name-desc">🔤 Name Z-A</option>
+              <option value="most-worn">👕 Most Worn</option>
+              <option value="least-worn">🆕 Least Worn</option>
+              <option value="favorites">⭐ Favorites First</option>
+              <option value="recent-worn">📅 Recently Worn</option>
+            </select>
+          </div>
+          
+          <!-- Category Filter -->
           <div class="filter-group">
+            <label class="filter-label">Category:</label>
             <select id="categoryFilter">
               <option value="">All Categories</option>
               <option value="tops">👕 Tops</option>
@@ -250,9 +267,15 @@
               <option value="shoes">👟 Shoes</option>
               <option value="accessories">👜 Accessories</option>
               <option value="outerwear">🧥 Outerwear</option>
+              <option value="underwear">🩲 Underwear</option>
+              <option value="sleepwear">🌙 Sleepwear</option>
+              <option value="activewear">🏃 Activewear</option>
             </select>
           </div>
+          
+          <!-- Laundry Status Filter -->
           <div class="filter-group">
+            <label class="filter-label">Status:</label>
             <select id="laundryFilter">
               <option value="">All Status</option>
               <option value="clean">🧽 Clean</option>
@@ -260,9 +283,17 @@
               <option value="washing">🌀 Washing</option>
             </select>
           </div>
+          
+          <!-- Search Box -->
+          <div class="filter-group search-group">
+            <input type="text" id="searchFilter" placeholder="🔍 Search items..." class="search-input">
+            <button class="clear-search-btn" id="clearSearchBtn" title="Clear search">✕</button>
+          </div>
+          
+          <!-- View Toggle -->
           <div class="view-toggle">
-            <button class="view-btn active" data-view="grid">⊞</button>
-            <button class="view-btn" data-view="list">☰</button>
+            <button class="view-btn active" data-view="grid" title="Grid View">⊞</button>
+            <button class="view-btn" data-view="list" title="List View">☰</button>
           </div>
         </div>
 
@@ -417,6 +448,56 @@
         </div>
         <div class="modal-body" id="itemDetailBody">
           <!-- Item details will be populated here -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Unified Add Modal -->
+    <div class="modal unified-add-modal" id="unifiedAddModal" style="display: none;">
+      <div class="modal-backdrop" id="unifiedAddBackdrop"></div>
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>✨ Add to Your Wardrobe</h3>
+          <button class="close-btn" id="closeUnifiedAddBtn">×</button>
+        </div>
+        <div class="modal-body">
+          <div class="add-methods-grid">
+            <div class="add-method-card" id="photoAnalysisMethod">
+              <div class="method-icon">🤖</div>
+              <div class="method-content">
+                <h4>AI Photo Analysis</h4>
+                <p>Upload photos and let AI automatically detect details</p>
+                <div class="method-status" id="visionStatus">Checking AI...</div>
+              </div>
+            </div>
+            
+            <div class="add-method-card" id="manualEntryMethod">
+              <div class="method-icon">✏️</div>
+              <div class="method-content">
+                <h4>Manual Entry</h4>
+                <p>Add items by typing details manually</p>
+                <div class="method-status available">✅ Always Available</div>
+              </div>
+            </div>
+            
+            <div class="add-method-card" id="textOnlyMethod">
+              <div class="method-icon">📝</div>
+              <div class="method-content">
+                <h4>Text-Only Entry</h4>
+                <p>Quick add by describing your item</p>
+                <div class="method-status available">⚡ Quick & Easy</div>
+              </div>
+            </div>
+            
+            <div class="add-method-card" id="styleDNAMethod">
+              <div class="method-icon">🧬</div>
+              <div class="method-content">
+                <h4>Style DNA Photo</h4>
+                <p>Upload your photo for personalized outfits</p>
+                <div class="method-status special">✨ For You</div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
