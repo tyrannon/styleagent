@@ -100,6 +100,10 @@ class ClothingAnalysisAPI {
     return await ipcRenderer.invoke('clothing:analyzeSingleImage', imagePath, options);
   }
 
+  static async analyzeCapturedPhoto(dataURL, options = {}) {
+    return await ipcRenderer.invoke('clothing:analyzeCapturedPhoto', dataURL, options);
+  }
+
   static async addAnalyzedItems(items) {
     return await ipcRenderer.invoke('clothing:addAnalyzedItems', items);
   }
@@ -349,11 +353,16 @@ class StyleAgent {
     const manualEntryMethod = document.getElementById('manualEntryMethod');
     const textOnlyMethod = document.getElementById('textOnlyMethod');
     const styleDNAMethod = document.getElementById('styleDNAMethod');
+    const professionalCameraMethod = document.getElementById('professionalCameraMethod');
 
     photoAnalysisMethod.addEventListener('click', () => this.selectAddMethod('photoAnalysis'));
     manualEntryMethod.addEventListener('click', () => this.selectAddMethod('manualEntry'));
     textOnlyMethod.addEventListener('click', () => this.selectAddMethod('textOnly'));
     styleDNAMethod.addEventListener('click', () => this.selectAddMethod('styleDNA'));
+    professionalCameraMethod.addEventListener('click', () => this.selectAddMethod('professionalCamera'));
+
+    // Professional Camera event listeners
+    this.initializeCameraEventListeners();
   }
 
   openModal(modalId) {
@@ -416,6 +425,9 @@ class StyleAgent {
         break;
       case 'styleDNA':
         this.uploadStyleDNAPhoto();
+        break;
+      case 'professionalCamera':
+        await this.openProfessionalCamera();
         break;
       default:
         console.warn('Unknown add method:', method);
@@ -4802,9 +4814,329 @@ class StyleAgent {
     
     console.log('🧹 Logs cleared');
   }
+
+  // ==================== PROFESSIONAL CAMERA ====================
+
+  initializeCameraEventListeners() {
+    // Camera modal controls
+    const closeCameraBtn = document.getElementById('closeCameraBtn');
+    const shutterBtn = document.getElementById('shutterBtn');
+    const retakeBtn = document.getElementById('retakeBtn');
+    const usePhotoBtn = document.getElementById('usePhotoBtn');
+    const flipCameraBtn = document.getElementById('flipCameraBtn');
+    const gridToggle = document.getElementById('gridToggle');
+    const exposureSlider = document.getElementById('exposureSlider');
+
+    if (closeCameraBtn) closeCameraBtn.addEventListener('click', () => this.closeProfessionalCamera());
+    if (shutterBtn) shutterBtn.addEventListener('click', () => this.capturePhoto());
+    if (retakeBtn) retakeBtn.addEventListener('click', () => this.retakePhoto());
+    if (usePhotoBtn) usePhotoBtn.addEventListener('click', () => this.usePhoto());
+    if (flipCameraBtn) flipCameraBtn.addEventListener('click', () => this.flipCamera());
+    if (gridToggle) gridToggle.addEventListener('click', () => this.toggleGrid());
+    if (exposureSlider) exposureSlider.addEventListener('input', (e) => this.adjustExposure(e.target.value));
+
+    // Camera mode buttons
+    const modeButtons = document.querySelectorAll('.mode-btn');
+    modeButtons.forEach(btn => {
+      btn.addEventListener('click', (e) => this.setCameraMode(e.target.dataset.mode));
+    });
+
+    // Touch focus for camera viewport
+    const cameraViewport = document.getElementById('cameraVideo');
+    if (cameraViewport) {
+      cameraViewport.addEventListener('click', (e) => this.setFocusPoint(e));
+    }
+  }
+
+  async openProfessionalCamera() {
+    console.log('📸 Opening Professional Camera...');
+    
+    try {
+      // Initialize camera state
+      this.camera = {
+        stream: null,
+        currentCamera: 'user', // 'user' for front, 'environment' for back
+        gridVisible: true,
+        mode: 'auto',
+        exposure: 0,
+        capturedPhoto: null
+      };
+
+      // Open camera modal
+      this.openModal('professionalCameraModal');
+
+      // Request camera access
+      await this.startCamera();
+
+      // Log camera opening
+      this.logAction('cameraActions', 'cameraOpened', { mode: this.camera.mode });
+
+    } catch (error) {
+      console.error('❌ Failed to open camera:', error);
+      this.showNotification('❌ Camera access denied or unavailable', 'error');
+      this.closeModal('professionalCameraModal');
+    }
+  }
+
+  async startCamera() {
+    try {
+      const video = document.getElementById('cameraVideo');
+      
+      // Stop existing stream if any
+      if (this.camera.stream) {
+        this.camera.stream.getTracks().forEach(track => track.stop());
+      }
+
+      // Request camera stream
+      const constraints = {
+        video: {
+          facingMode: this.camera.currentCamera,
+          width: { ideal: 1920 },
+          height: { ideal: 1080 }
+        },
+        audio: false
+      };
+
+      this.camera.stream = await navigator.mediaDevices.getUserMedia(constraints);
+      video.srcObject = this.camera.stream;
+
+      // Wait for video to load
+      await new Promise((resolve) => {
+        video.addEventListener('loadedmetadata', resolve, { once: true });
+      });
+
+      console.log('✅ Camera stream started successfully');
+
+    } catch (error) {
+      console.error('❌ Failed to start camera:', error);
+      throw new Error('Could not access camera');
+    }
+  }
+
+  async capturePhoto() {
+    console.log('📸 Capturing photo...');
+    
+    const shutterBtn = document.getElementById('shutterBtn');
+    const video = document.getElementById('cameraVideo');
+    const canvas = document.getElementById('cameraCanvas');
+    const capturePreview = document.getElementById('capturePreview');
+    const capturedImage = document.getElementById('capturedImage');
+
+    try {
+      // Add capture animation
+      shutterBtn.classList.add('capturing');
+      setTimeout(() => shutterBtn.classList.remove('capturing'), 300);
+
+      // Set canvas size to match video
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+
+      // Draw video frame to canvas
+      const ctx = canvas.getContext('2d');
+      ctx.save();
+      
+      // Mirror the image (flip horizontally)
+      ctx.scale(-1, 1);
+      ctx.drawImage(video, -canvas.width, 0);
+      ctx.restore();
+
+      // Convert to data URL
+      const dataURL = canvas.toDataURL('image/jpeg', 0.9);
+      this.camera.capturedPhoto = dataURL;
+
+      // Show preview
+      capturedImage.src = dataURL;
+      capturePreview.style.display = 'flex';
+
+      // Log capture
+      this.logAction('cameraActions', 'photoCaptured', { 
+        mode: this.camera.mode,
+        exposure: this.camera.exposure 
+      });
+
+      console.log('✅ Photo captured successfully');
+
+    } catch (error) {
+      console.error('❌ Failed to capture photo:', error);
+      this.showNotification('❌ Failed to capture photo', 'error');
+    }
+  }
+
+  retakePhoto() {
+    console.log('🔄 Retaking photo...');
+    const capturePreview = document.getElementById('capturePreview');
+    capturePreview.style.display = 'none';
+    this.camera.capturedPhoto = null;
+  }
+
+  async usePhoto() {
+    if (!this.camera.capturedPhoto) {
+      this.showNotification('❌ No photo to use', 'error');
+      return;
+    }
+
+    console.log('✅ Using captured photo for analysis...');
+    
+    try {
+      // Close camera
+      await this.closeProfessionalCamera();
+
+      // Start analysis pipeline
+      this.showNotification('📸 Saving and analyzing your photo...', 'info');
+      
+      // Save the captured photo and analyze it
+      const analysisResult = await ClothingAnalysisAPI.analyzeCapturedPhoto(this.camera.capturedPhoto, {
+        generatePlaceholder: true
+      });
+
+      if (analysisResult.success) {
+        console.log('✅ Camera photo analyzed successfully:', analysisResult);
+        this.showNotification('✅ Photo analyzed! Adding to wardrobe...', 'success');
+        
+        // Add analyzed items to wardrobe
+        if (analysisResult.items && analysisResult.items.length > 0) {
+          const addResult = await ClothingAnalysisAPI.addAnalyzedItems(analysisResult.items);
+          if (addResult.success) {
+            this.showNotification(`✅ Added ${analysisResult.items.length} item(s) to wardrobe!`, 'success');
+            // Refresh wardrobe display
+            await this.loadAndDisplayItems();
+          } else {
+            this.showNotification('❌ Failed to add items to wardrobe', 'error');
+          }
+        }
+      } else {
+        throw new Error(analysisResult.error || 'Analysis failed');
+      }
+
+    } catch (error) {
+      console.error('❌ Failed to use photo:', error);
+      this.showNotification('❌ Failed to analyze photo: ' + error.message, 'error');
+    }
+  }
+
+  async flipCamera() {
+    console.log('🔄 Flipping camera...');
+    
+    this.camera.currentCamera = this.camera.currentCamera === 'user' ? 'environment' : 'user';
+    
+    try {
+      await this.startCamera();
+      this.showNotification(`📱 Switched to ${this.camera.currentCamera === 'user' ? 'front' : 'back'} camera`, 'info');
+    } catch (error) {
+      console.error('❌ Failed to flip camera:', error);
+      this.showNotification('❌ Failed to switch camera', 'error');
+    }
+  }
+
+  toggleGrid() {
+    const gridToggle = document.getElementById('gridToggle');
+    const cameraGrid = document.getElementById('cameraGrid');
+    
+    this.camera.gridVisible = !this.camera.gridVisible;
+    
+    if (this.camera.gridVisible) {
+      cameraGrid.classList.remove('hidden');
+      gridToggle.classList.add('active');
+      gridToggle.textContent = 'ON';
+    } else {
+      cameraGrid.classList.add('hidden');
+      gridToggle.classList.remove('active');
+      gridToggle.textContent = 'OFF';
+    }
+    
+    console.log('📐 Grid toggled:', this.camera.gridVisible ? 'ON' : 'OFF');
+  }
+
+  adjustExposure(value) {
+    this.camera.exposure = parseFloat(value);
+    const exposureIndicator = document.getElementById('exposureIndicator');
+    exposureIndicator.textContent = `EV: ${value > 0 ? '+' : ''}${value}`;
+    
+    // Apply exposure filter to video (visual feedback)
+    const video = document.getElementById('cameraVideo');
+    const brightness = 1 + (parseFloat(value) * 0.3); // Adjust brightness based on exposure
+    video.style.filter = `brightness(${brightness})`;
+    
+    console.log('☀️ Exposure adjusted:', value);
+  }
+
+  setCameraMode(mode) {
+    console.log('🎯 Setting camera mode:', mode);
+    
+    // Update active mode button
+    document.querySelectorAll('.mode-btn').forEach(btn => {
+      btn.classList.remove('active');
+    });
+    document.querySelector(`[data-mode="${mode}"]`).classList.add('active');
+    
+    this.camera.mode = mode;
+    
+    // Apply mode-specific settings
+    switch(mode) {
+      case 'portrait':
+        this.showNotification('👤 Portrait mode: Best for close-up clothing shots', 'info');
+        break;
+      case 'flat-lay':
+        this.showNotification('📐 Flat lay mode: Perfect for laying clothes flat', 'info');
+        break;
+      case 'detail':
+        this.showNotification('🔍 Detail mode: Great for textures and patterns', 'info');
+        break;
+      default:
+        this.showNotification('⚡ Auto mode: Smart automatic settings', 'info');
+    }
+  }
+
+  setFocusPoint(event) {
+    const focusPoint = document.getElementById('focusPoint');
+    const rect = event.target.getBoundingClientRect();
+    
+    // Calculate focus point position
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    
+    // Position focus indicator
+    focusPoint.style.left = (x - 40) + 'px';
+    focusPoint.style.top = (y - 40) + 'px';
+    
+    // Show focus animation
+    focusPoint.classList.remove('active', 'focusing');
+    setTimeout(() => {
+      focusPoint.classList.add('active', 'focusing');
+    }, 10);
+    
+    // Hide after animation
+    setTimeout(() => {
+      focusPoint.classList.remove('focusing');
+    }, 1000);
+    
+    console.log('🎯 Focus point set:', { x, y });
+  }
+
+  async closeProfessionalCamera() {
+    console.log('📸 Closing Professional Camera...');
+    
+    // Stop camera stream
+    if (this.camera && this.camera.stream) {
+      this.camera.stream.getTracks().forEach(track => track.stop());
+    }
+    
+    // Close modal
+    this.closeModal('professionalCameraModal');
+    
+    // Reset camera state
+    this.camera = null;
+    
+    // Clear video element
+    const video = document.getElementById('cameraVideo');
+    if (video) {
+      video.srcObject = null;
+    }
+    
+    console.log('✅ Professional Camera closed');
+  }
 }
 
-// Make app globally available for onclick handlers
 window.app = null;
 
 // Initialize the app when DOM is loaded

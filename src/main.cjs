@@ -1,5 +1,7 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
+const fs = require('fs');
+const crypto = require('crypto');
 const WardrobeManager = require('../data/WardrobeManager');
 const OutfitsManager = require('../data/OutfitsManager');
 const StyleDNAManager = require('../data/StyleDNAManager');
@@ -7,6 +9,8 @@ const StyleAI = require('../agent/StyleAI');
 const OutfitVisualizer = require('../agent/OutfitVisualizer');
 const PhotoRealisticVisualizer = require('../agent/PhotoRealisticVisualizer');
 const ClothingAnalyzer = require('../agent/ClothingAnalyzer');
+
+// __dirname is available in CommonJS automatically
 
 let mainWindow;
 let wardrobeManager;
@@ -837,40 +841,137 @@ function setupIpcHandlers() {
 
   // Analyze captured photo (data URL)
   ipcMain.handle('clothing:analyzeCapturedPhoto', async (event, dataURL, options = {}) => {
+    const debugId = `analyzer-${Date.now()}`;
+    console.log(`🔬 === MAIN PROCESS ANALYSIS START (${debugId}) ===`);
+    
     try {
+      // Step 1: Validate analyzer
+      console.log('📋 Step 1: Checking clothing analyzer...');
       if (!clothingAnalyzer) {
+        console.error('❌ Step 1 FAILED: Clothing analyzer not initialized');
         return {
           success: false,
           error: 'Clothing analyzer not initialized'
         };
       }
+      console.log('✅ Step 1 SUCCESS: Clothing analyzer ready');
+
+      // Step 2: Validate input data
+      console.log('📋 Step 2: Validating input data...');
+      console.log('📄 Data URL info:', {
+        length: dataURL ? dataURL.length : 0,
+        isString: typeof dataURL === 'string',
+        startsWithData: dataURL ? dataURL.startsWith('data:') : false,
+        preview: dataURL ? dataURL.substring(0, 50) + '...' : 'null'
+      });
+      
+      if (!dataURL || typeof dataURL !== 'string' || !dataURL.startsWith('data:')) {
+        console.error('❌ Step 2 FAILED: Invalid data URL');
+        return {
+          success: false,
+          error: 'Invalid data URL provided'
+        };
+      }
+      console.log('✅ Step 2 SUCCESS: Data URL validated');
 
       console.log('📸 Analyzing captured photo from camera...');
       
-      // Save the data URL as a temporary file
-      const fs = require('fs');
-      const path = require('path');
-      const crypto = require('crypto');
+      // Step 3: Set up file system operations
+      console.log('📋 Step 3: Setting up file operations...');
       
       // Create unique filename
       const timestamp = Date.now();
       const randomId = crypto.randomBytes(6).toString('hex');
       const filename = `camera-capture-${timestamp}-${randomId}.jpg`;
-      const tempPath = path.join(__dirname, '../data/images', filename);
+      const imagesDir = path.join(__dirname, '../data/images');
+      const tempPath = path.join(imagesDir, filename);
       
-      // Convert data URL to buffer and save
-      const base64Data = dataURL.replace(/^data:image\/[a-z]+;base64,/, '');
-      const buffer = Buffer.from(base64Data, 'base64');
-      fs.writeFileSync(tempPath, buffer);
+      console.log('📄 File details:', {
+        filename,
+        imagesDir,
+        tempPath,
+        imagesDirExists: fs.existsSync(imagesDir)
+      });
       
-      console.log(`💾 Saved captured photo to: ${tempPath}`);
+      // Ensure images directory exists
+      if (!fs.existsSync(imagesDir)) {
+        console.log('📁 Creating images directory...');
+        fs.mkdirSync(imagesDir, { recursive: true });
+      }
+      console.log('✅ Step 3 SUCCESS: File system ready');
       
-      // Now analyze the saved file
+      // Step 4: Convert and save image
+      console.log('📋 Step 4: Converting and saving image...');
+      try {
+        const base64Data = dataURL.replace(/^data:image\/[a-z]+;base64,/, '');
+        console.log('📄 Base64 conversion:', {
+          originalLength: dataURL.length,
+          base64Length: base64Data.length,
+          reduction: dataURL.length - base64Data.length
+        });
+        
+        const buffer = Buffer.from(base64Data, 'base64');
+        console.log('📄 Buffer created:', {
+          bufferSize: buffer.length,
+          bufferType: typeof buffer
+        });
+        
+        fs.writeFileSync(tempPath, buffer);
+        
+        // Verify file was saved
+        const savedFileSize = fs.statSync(tempPath).size;
+        console.log(`💾 File saved successfully:`, {
+          path: tempPath,
+          size: savedFileSize,
+          sizeMatches: savedFileSize === buffer.length
+        });
+        console.log('✅ Step 4 SUCCESS: Image saved');
+      } catch (saveError) {
+        console.error('❌ Step 4 FAILED: Image save error:', saveError);
+        return {
+          success: false,
+          error: `Failed to save image: ${saveError.message}`
+        };
+      }
+      
+      // Step 5: Analyze the saved file
+      console.log('📋 Step 5: Running clothing analysis...');
+      console.log('📤 Analysis parameters:', {
+        imagePath: tempPath,
+        options
+      });
+      
       const result = await clothingAnalyzer.analyzeClothingImage(tempPath, options);
       
+      console.log('📥 Step 5 Analysis result:', {
+        success: result.success,
+        hasItem: !!result.item,
+        error: result.error,
+        itemPreview: result.item ? {
+          id: result.item.id,
+          name: result.item.name,
+          category: result.item.category,
+          hasImage: !!result.item.image
+        } : null
+      });
+      
+      if (result.success) {
+        console.log('✅ Step 5 SUCCESS: Analysis completed');
+      } else {
+        console.log('⚠️ Step 5 PARTIAL: Analysis failed but may have fallback');
+      }
+      
+      console.log(`🔬 === MAIN PROCESS ANALYSIS END (${debugId}) ===`);
       return result;
+      
     } catch (error) {
-      console.error('Error analyzing captured photo:', error);
+      console.error(`💥 MAIN PROCESS FAILURE (${debugId}):`, error);
+      console.error('📄 Error details:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      });
+      
       return {
         success: false,
         error: error.message

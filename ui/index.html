@@ -499,6 +499,112 @@
                 <div class="method-status special">✨ For You</div>
               </div>
             </div>
+            
+            <div class="add-method-card" id="professionalCameraMethod">
+              <div class="method-icon">📸</div>
+              <div class="method-content">
+                <h4>Professional Camera</h4>
+                <p>Take photos with pro grid lines and controls</p>
+                <div class="method-status pro">🎯 Pro Mode</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Professional Camera Modal -->
+    <div class="modal camera-modal" id="professionalCameraModal" style="display: none;">
+      <div class="camera-backdrop"></div>
+      <div class="camera-interface">
+        <!-- Camera Header -->
+        <div class="camera-header">
+          <button class="camera-close-btn" id="closeCameraBtn">×</button>
+          <div class="camera-title">📸 Professional Camera</div>
+          <button class="camera-settings-btn" id="cameraSettingsBtn">⚙️</button>
+        </div>
+
+        <!-- Camera View -->
+        <div class="camera-viewport">
+          <video id="cameraVideo" autoplay playsinline></video>
+          <canvas id="cameraCanvas" style="display: none;"></canvas>
+          
+          <!-- Grid Lines Overlay -->
+          <div class="camera-grid" id="cameraGrid">
+            <div class="grid-line grid-vertical grid-left"></div>
+            <div class="grid-line grid-vertical grid-right"></div>
+            <div class="grid-line grid-horizontal grid-top"></div>
+            <div class="grid-line grid-horizontal grid-bottom"></div>
+          </div>
+          
+          <!-- Focus Point -->
+          <div class="focus-point" id="focusPoint"></div>
+          
+          <!-- Camera Overlay Info -->
+          <div class="camera-overlay">
+            <div class="camera-info">
+              <div class="exposure-indicator" id="exposureIndicator">EV: 0</div>
+              <div class="flash-indicator" id="flashIndicator">🔆</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Camera Controls -->
+        <div class="camera-controls">
+          <!-- Mode Selector -->
+          <div class="camera-modes">
+            <button class="mode-btn active" data-mode="auto">AUTO</button>
+            <button class="mode-btn" data-mode="portrait">PORTRAIT</button>
+            <button class="mode-btn" data-mode="flat-lay">FLAT LAY</button>
+            <button class="mode-btn" data-mode="detail">DETAIL</button>
+          </div>
+
+          <!-- Main Controls -->
+          <div class="camera-main-controls">
+            <button class="control-btn" id="galleryBtn">
+              <span class="control-icon">🖼️</span>
+              <span class="control-label">Gallery</span>
+            </button>
+            
+            <button class="shutter-btn" id="shutterBtn">
+              <div class="shutter-outer">
+                <div class="shutter-inner"></div>
+              </div>
+            </button>
+            
+            <button class="control-btn" id="flipCameraBtn">
+              <span class="control-icon">🔄</span>
+              <span class="control-label">Flip</span>
+            </button>
+          </div>
+
+          <!-- Advanced Controls -->
+          <div class="camera-advanced-controls" id="advancedControls">
+            <div class="control-group">
+              <label>Exposure</label>
+              <input type="range" id="exposureSlider" min="-2" max="2" step="0.1" value="0">
+            </div>
+            <div class="control-group">
+              <label>Grid</label>
+              <button class="toggle-btn active" id="gridToggle">ON</button>
+            </div>
+            <div class="control-group">
+              <label>Timer</label>
+              <select id="timerSelect">
+                <option value="0">Off</option>
+                <option value="3">3s</option>
+                <option value="10">10s</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Capture Preview -->
+        <div class="capture-preview" id="capturePreview" style="display: none;">
+          <img id="capturedImage" alt="Captured photo">
+          <div class="preview-controls">
+            <button class="preview-btn secondary" id="retakeBtn">↻ Retake</button>
+            <button class="preview-btn primary" id="usePhotoBtn">✓ Use Photo</button>
           </div>
         </div>
       </div>
