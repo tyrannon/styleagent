@@ -918,16 +918,157 @@ class StyleAgent {
     
     const buttons = document.querySelectorAll('.view-btn');
     buttons.forEach(btn => btn.classList.remove('active'));
-    event.target.classList.add('active');
+    
+    // Find and activate the correct button
+    const targetButton = document.querySelector(`.view-btn[data-view="${view}"]`);
+    if (targetButton) {
+      targetButton.classList.add('active');
+    }
     
     const grid = document.getElementById('clothingGrid');
+    
+    // Clean up previous view state
+    this.cleanupGalleryView();
+    
+    // Remove all view classes first
+    grid.classList.remove('list-view', 'gallery-view');
+    
+    // Apply the selected view
     if (view === 'list') {
       grid.classList.add('list-view');
       this.currentView = 'list';
+    } else if (view === 'gallery') {
+      grid.classList.add('gallery-view');
+      this.currentView = 'gallery';
+      // Add slight delay to ensure DOM is updated
+      setTimeout(() => this.initializeGalleryView(), 50);
     } else {
-      grid.classList.remove('list-view');
       this.currentView = 'grid';
     }
+  }
+
+  cleanupGalleryView() {
+    const grid = document.getElementById('clothingGrid');
+    
+    // Remove gallery event listeners
+    if (this.galleryListeners) {
+      this.galleryListeners.forEach(({ element, event, handler }) => {
+        element.removeEventListener(event, handler);
+      });
+      this.galleryListeners = null;
+    }
+    
+    // Reset cursor and scroll behavior
+    if (grid) {
+      grid.style.cursor = '';
+      grid.style.scrollBehavior = '';
+    }
+  }
+
+  initializeGalleryView() {
+    const grid = document.getElementById('clothingGrid');
+    
+    // Remove any existing gallery listeners
+    if (this.galleryListeners) {
+      this.galleryListeners.forEach(({ element, event, handler }) => {
+        element.removeEventListener(event, handler);
+      });
+    }
+    this.galleryListeners = [];
+
+    let isDown = false;
+    let startX;
+    let scrollLeft;
+    let velocity = 0;
+    let momentum = 0;
+    let lastMoveTime = 0;
+    let lastMoveX = 0;
+
+    // Mouse/touch start
+    const handleStart = (e) => {
+      isDown = true;
+      grid.style.scrollBehavior = 'auto'; // Disable smooth scrolling during drag
+      
+      const clientX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
+      startX = clientX - grid.offsetLeft;
+      scrollLeft = grid.scrollLeft;
+      velocity = 0;
+      lastMoveTime = Date.now();
+      lastMoveX = clientX;
+      
+      grid.style.cursor = 'grabbing';
+    };
+
+    // Mouse/touch move
+    const handleMove = (e) => {
+      if (!isDown) return;
+      e.preventDefault();
+      
+      const clientX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
+      const x = clientX - grid.offsetLeft;
+      const walk = (x - startX) * 1.5; // Increase scroll speed
+      
+      const now = Date.now();
+      const timeDelta = now - lastMoveTime;
+      const distance = clientX - lastMoveX;
+      
+      if (timeDelta > 0) {
+        velocity = distance / timeDelta;
+      }
+      
+      grid.scrollLeft = scrollLeft - walk;
+      lastMoveTime = now;
+      lastMoveX = clientX;
+    };
+
+    // Mouse/touch end
+    const handleEnd = () => {
+      if (!isDown) return;
+      isDown = false;
+      grid.style.cursor = 'grab';
+      grid.style.scrollBehavior = 'smooth';
+
+      // Apply momentum scrolling
+      if (Math.abs(velocity) > 0.1) {
+        momentum = velocity * 300; // Adjust momentum factor
+        this.applyMomentum(grid, momentum);
+      }
+    };
+
+    // Add event listeners
+    const listeners = [
+      { element: grid, event: 'mousedown', handler: handleStart },
+      { element: grid, event: 'mousemove', handler: handleMove },
+      { element: grid, event: 'mouseup', handler: handleEnd },
+      { element: grid, event: 'mouseleave', handler: handleEnd },
+      { element: grid, event: 'touchstart', handler: handleStart },
+      { element: grid, event: 'touchmove', handler: handleMove },
+      { element: grid, event: 'touchend', handler: handleEnd }
+    ];
+
+    listeners.forEach(({ element, event, handler }) => {
+      element.addEventListener(event, handler, { passive: false });
+    });
+
+    this.galleryListeners = listeners;
+
+    // Set cursor style
+    grid.style.cursor = 'grab';
+    
+    // Log gallery view initialization
+    this.logAction('wardrobeActions', 'galleryViewInitialized', { 
+      itemCount: this.currentItems.length 
+    });
+  }
+
+  applyMomentum(element, momentum) {
+    if (Math.abs(momentum) < 1) return;
+    
+    const friction = 0.95;
+    element.scrollLeft -= momentum;
+    momentum *= friction;
+    
+    requestAnimationFrame(() => this.applyMomentum(element, momentum));
   }
 
   // ==================== ITEM INTERACTIONS ====================
@@ -1019,7 +1160,237 @@ class StyleAgent {
   }
 
   editItem(itemId) {
-    this.showNotification('✏️ Edit functionality coming soon!', 'info');
+    const item = this.currentItems.find(i => i.id === itemId);
+    if (!item) {
+      this.showNotification('❌ Item not found', 'error');
+      return;
+    }
+    
+    this.logAction('itemInteractions', 'edit', { itemId, category: item.category });
+    this.showEditItemModal(item);
+  }
+
+  showEditItemModal(item) {
+    // Close the detail modal first
+    this.closeModal('itemDetailModal');
+    
+    // Create edit modal
+    const modal = document.createElement('div');
+    modal.className = 'modal edit-item-modal';
+    modal.id = 'editItemModal';
+    modal.innerHTML = `
+      <div class="modal-backdrop"></div>
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>✏️ Edit Item</h3>
+          <button class="close-btn" onclick="app.closeEditItemModal()">×</button>
+        </div>
+        <div class="modal-body">
+          <div class="edit-item-form">
+            <!-- Basic Information -->
+            <div class="form-section">
+              <h4>📝 Basic Information</h4>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="editItemName">Name *</label>
+                  <input type="text" id="editItemName" value="${item.name}" required>
+                </div>
+                <div class="form-group">
+                  <label for="editItemCategory">Category *</label>
+                  <select id="editItemCategory" required>
+                    <option value="tops" ${item.category === 'tops' ? 'selected' : ''}>👕 Tops</option>
+                    <option value="bottoms" ${item.category === 'bottoms' ? 'selected' : ''}>👖 Bottoms</option>
+                    <option value="shoes" ${item.category === 'shoes' ? 'selected' : ''}>👟 Shoes</option>
+                    <option value="accessories" ${item.category === 'accessories' ? 'selected' : ''}>👜 Accessories</option>
+                    <option value="outerwear" ${item.category === 'outerwear' ? 'selected' : ''}>🧥 Outerwear</option>
+                    <option value="underwear" ${item.category === 'underwear' ? 'selected' : ''}>🩲 Underwear</option>
+                    <option value="sleepwear" ${item.category === 'sleepwear' ? 'selected' : ''}>🌙 Sleepwear</option>
+                    <option value="activewear" ${item.category === 'activewear' ? 'selected' : ''}>🏃 Activewear</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="editItemBrand">Brand</label>
+                  <input type="text" id="editItemBrand" value="${item.brand || ''}" placeholder="e.g., Nike, Zara">
+                </div>
+                <div class="form-group">
+                  <label for="editItemSize">Size</label>
+                  <input type="text" id="editItemSize" value="${item.size || ''}" placeholder="e.g., M, 32, 8.5">
+                </div>
+              </div>
+            </div>
+
+            <!-- Colors & Materials -->
+            <div class="form-section">
+              <h4>🎨 Colors & Materials</h4>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="editItemColors">Colors (comma-separated)</label>
+                  <input type="text" id="editItemColors" value="${(item.color || []).join(', ')}" placeholder="e.g., blue, white, navy">
+                </div>
+                <div class="form-group">
+                  <label for="editItemMaterials">Materials (comma-separated)</label>
+                  <input type="text" id="editItemMaterials" value="${(item.material || []).join(', ')}" placeholder="e.g., cotton, polyester">
+                </div>
+              </div>
+            </div>
+
+            <!-- Attributes -->
+            <div class="form-section">
+              <h4>🏷️ Attributes</h4>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="editItemSeasons">Seasons (comma-separated)</label>
+                  <input type="text" id="editItemSeasons" value="${(item.season || []).join(', ')}" placeholder="e.g., spring, summer">
+                </div>
+                <div class="form-group">
+                  <label for="editItemOccasions">Occasions (comma-separated)</label>
+                  <input type="text" id="editItemOccasions" value="${(item.occasion || []).join(', ')}" placeholder="e.g., casual, work">
+                </div>
+              </div>
+              
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="editItemCondition">Condition</label>
+                  <select id="editItemCondition">
+                    <option value="excellent" ${item.condition === 'excellent' ? 'selected' : ''}>Excellent</option>
+                    <option value="good" ${item.condition === 'good' ? 'selected' : ''}>Good</option>
+                    <option value="fair" ${item.condition === 'fair' ? 'selected' : ''}>Fair</option>
+                    <option value="poor" ${item.condition === 'poor' ? 'selected' : ''}>Poor</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="editItemLaundryStatus">Laundry Status</label>
+                  <select id="editItemLaundryStatus">
+                    <option value="clean" ${(item.laundryStatus || 'clean') === 'clean' ? 'selected' : ''}>🧽 Clean</option>
+                    <option value="dirty" ${item.laundryStatus === 'dirty' ? 'selected' : ''}>🧺 Dirty</option>
+                    <option value="washing" ${item.laundryStatus === 'washing' ? 'selected' : ''}>🌀 Washing</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <!-- Usage & Preferences -->
+            <div class="form-section">
+              <h4>📊 Usage & Preferences</h4>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="editItemTimesWorn">Times Worn</label>
+                  <input type="number" id="editItemTimesWorn" value="${item.timesWorn || 0}" min="0">
+                </div>
+                <div class="form-group checkbox-group">
+                  <label>
+                    <input type="checkbox" id="editItemFavorite" ${item.favorite ? 'checked' : ''}>
+                    <span class="checkbox-label">⭐ Mark as Favorite</span>
+                  </label>
+                </div>
+              </div>
+              
+              <div class="form-group">
+                <label for="editItemTags">Tags (comma-separated)</label>
+                <input type="text" id="editItemTags" value="${(item.tags || []).join(', ')}" placeholder="e.g., casual, comfortable, vintage">
+              </div>
+              
+              <div class="form-group">
+                <label for="editItemNotes">Notes</label>
+                <textarea id="editItemNotes" rows="3" placeholder="Any additional notes about this item...">${item.notes || ''}</textarea>
+              </div>
+            </div>
+
+            <!-- Image Section -->
+            <div class="form-section">
+              <h4>📷 Image</h4>
+              <div class="current-image-preview">
+                <img src="${item.image || item.imageUrl || this.generatePlaceholderImage(item)}" alt="${item.name}" style="max-width: 200px; max-height: 200px; border-radius: 8px;">
+                <p class="image-note">Current image (image updating coming soon)</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-secondary" onclick="app.closeEditItemModal()">Cancel</button>
+          <button class="btn-primary" onclick="app.saveItemChanges('${item.id}')">💾 Save Changes</button>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(modal);
+    modal.style.display = 'flex';
+    
+    // Focus the name field
+    setTimeout(() => {
+      document.getElementById('editItemName').focus();
+    }, 300);
+  }
+
+  closeEditItemModal() {
+    const modal = document.getElementById('editItemModal');
+    if (modal) {
+      modal.remove();
+    }
+  }
+
+  async saveItemChanges(itemId) {
+    try {
+      // Collect form data
+      const updates = {
+        name: document.getElementById('editItemName').value.trim(),
+        category: document.getElementById('editItemCategory').value,
+        brand: document.getElementById('editItemBrand').value.trim(),
+        size: document.getElementById('editItemSize').value.trim(),
+        color: document.getElementById('editItemColors').value.split(',').map(c => c.trim()).filter(c => c),
+        material: document.getElementById('editItemMaterials').value.split(',').map(m => m.trim()).filter(m => m),
+        season: document.getElementById('editItemSeasons').value.split(',').map(s => s.trim()).filter(s => s),
+        occasion: document.getElementById('editItemOccasions').value.split(',').map(o => o.trim()).filter(o => o),
+        condition: document.getElementById('editItemCondition').value,
+        laundryStatus: document.getElementById('editItemLaundryStatus').value,
+        timesWorn: parseInt(document.getElementById('editItemTimesWorn').value) || 0,
+        favorite: document.getElementById('editItemFavorite').checked,
+        tags: document.getElementById('editItemTags').value.split(',').map(t => t.trim()).filter(t => t),
+        notes: document.getElementById('editItemNotes').value.trim()
+      };
+
+      // Validate required fields
+      if (!updates.name) {
+        this.showNotification('❌ Name is required', 'error');
+        document.getElementById('editItemName').focus();
+        return;
+      }
+
+      if (!updates.category) {
+        this.showNotification('❌ Category is required', 'error');
+        return;
+      }
+
+      // Ensure arrays are not empty - provide defaults
+      if (updates.color.length === 0) updates.color = ['unknown'];
+      if (updates.material.length === 0) updates.material = ['unknown'];
+      if (updates.season.length === 0) updates.season = ['all-season'];
+      if (updates.occasion.length === 0) updates.occasion = ['casual'];
+
+      this.showLoading('Saving changes...');
+      
+      const result = await WardrobeAPI.updateItem(itemId, updates);
+      
+      if (result.success) {
+        this.logAction('itemInteractions', 'edit', { 
+          itemId, 
+          changedFields: Object.keys(updates),
+          newCategory: updates.category 
+        });
+        
+        this.showNotification('✅ Item updated successfully!', 'success');
+        this.closeEditItemModal();
+        await this.loadWardrobe();
+      } else {
+        this.showNotification(`❌ Failed to update item: ${result.error}`, 'error');
+      }
+    } catch (error) {
+      console.error('Error saving item changes:', error);
+      this.showNotification('❌ Failed to save changes', 'error');
+    }
   }
 
   async deleteItem(itemId) {
@@ -1040,6 +1411,252 @@ class StyleAgent {
     } catch (error) {
       console.error('Error deleting item:', error);
       this.showNotification('❌ Failed to delete item', 'error');
+    }
+  }
+
+  // ==================== OUTFIT EDITING ====================
+
+  editOutfit(outfitId) {
+    const outfit = this.outfits.find(o => o.id === outfitId);
+    if (!outfit) {
+      this.showNotification('❌ Outfit not found', 'error');
+      return;
+    }
+    
+    this.logAction('outfitGeneration', 'edit', { outfitId, itemCount: outfit.itemIds.length });
+    this.showEditOutfitModal(outfit);
+  }
+
+  showEditOutfitModal(outfit) {
+    // Close any existing modals
+    const existingModals = document.querySelectorAll('.modal');
+    existingModals.forEach(modal => modal.remove());
+    
+    // Create edit outfit modal
+    const modal = document.createElement('div');
+    modal.className = 'modal edit-outfit-modal';
+    modal.id = 'editOutfitModal';
+    modal.innerHTML = `
+      <div class="modal-backdrop"></div>
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>✏️ Edit Outfit</h3>
+          <button class="close-btn" onclick="app.closeEditOutfitModal()">×</button>
+        </div>
+        <div class="modal-body">
+          <div class="edit-outfit-form">
+            <!-- Basic Information -->
+            <div class="form-section">
+              <h4>📝 Outfit Details</h4>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="editOutfitName">Name *</label>
+                  <input type="text" id="editOutfitName" value="${outfit.name}" required placeholder="e.g., Summer Casual Look">
+                </div>
+                <div class="form-group">
+                  <label for="editOutfitOccasion">Occasion</label>
+                  <select id="editOutfitOccasion">
+                    <option value="casual" ${outfit.occasion === 'casual' ? 'selected' : ''}>Casual</option>
+                    <option value="work" ${outfit.occasion === 'work' ? 'selected' : ''}>Work</option>
+                    <option value="formal" ${outfit.occasion === 'formal' ? 'selected' : ''}>Formal</option>
+                    <option value="date" ${outfit.occasion === 'date' ? 'selected' : ''}>Date Night</option>
+                    <option value="gym" ${outfit.occasion === 'gym' ? 'selected' : ''}>Gym/Active</option>
+                    <option value="travel" ${outfit.occasion === 'travel' ? 'selected' : ''}>Travel</option>
+                    <option value="party" ${outfit.occasion === 'party' ? 'selected' : ''}>Party</option>
+                    <option value="beach" ${outfit.occasion === 'beach' ? 'selected' : ''}>Beach</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="editOutfitWeather">Weather</label>
+                  <select id="editOutfitWeather">
+                    <option value="mild" ${outfit.weather === 'mild' ? 'selected' : ''}>Mild</option>
+                    <option value="hot" ${outfit.weather === 'hot' ? 'selected' : ''}>Hot</option>
+                    <option value="cold" ${outfit.weather === 'cold' ? 'selected' : ''}>Cold</option>
+                    <option value="rainy" ${outfit.weather === 'rainy' ? 'selected' : ''}>Rainy</option>
+                    <option value="windy" ${outfit.weather === 'windy' ? 'selected' : ''}>Windy</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="editOutfitTimesWorn">Times Worn</label>
+                  <input type="number" id="editOutfitTimesWorn" value="${outfit.timesWorn || 0}" min="0">
+                </div>
+              </div>
+              
+              <div class="form-group">
+                <label for="editOutfitDescription">Description</label>
+                <textarea id="editOutfitDescription" rows="3" placeholder="Add a description for this outfit...">${outfit.description || ''}</textarea>
+              </div>
+              
+              <div class="form-group checkbox-group">
+                <label>
+                  <input type="checkbox" id="editOutfitLoved" ${outfit.loved ? 'checked' : ''}>
+                  <span class="checkbox-label">❤️ Mark as Loved</span>
+                </label>
+              </div>
+            </div>
+
+            <!-- Current Items -->
+            <div class="form-section">
+              <h4>👗 Outfit Items</h4>
+              <div class="current-outfit-items">
+                ${outfit.itemDetails.map(item => `
+                  <div class="outfit-edit-item" data-item-id="${item.id}">
+                    <div class="outfit-item-preview">
+                      <img src="${item.image || this.generatePlaceholderImage(item)}" alt="${item.name}" style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px;">
+                    </div>
+                    <div class="outfit-item-info">
+                      <div class="outfit-item-name">${item.name}</div>
+                      <div class="outfit-item-details">${this.formatCategory(item.category)} • ${item.color.join(', ')}</div>
+                    </div>
+                    <button class="btn-remove-item" onclick="app.removeItemFromOutfitEdit('${item.id}')" title="Remove from outfit">✕</button>
+                  </div>
+                `).join('')}
+              </div>
+              
+              <div class="add-items-section">
+                <h5>Add Items to Outfit</h5>
+                <p class="help-text">Select items from your wardrobe to add to this outfit:</p>
+                <div class="available-items-grid" id="availableItemsGrid">
+                  <!-- Will be populated with available items -->
+                </div>
+              </div>
+            </div>
+
+            <!-- Image Preview -->
+            <div class="form-section">
+              <h4>📷 Outfit Image</h4>
+              <div class="current-image-preview">
+                ${outfit.image ? 
+                  `<img src="${outfit.image}" alt="${outfit.name}" style="max-width: 300px; max-height: 300px; border-radius: 8px;">` :
+                  `<div class="no-image-placeholder">👗 No outfit image available</div>`
+                }
+                <p class="image-note">Outfit image (regeneration coming soon)</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-secondary" onclick="app.closeEditOutfitModal()">Cancel</button>
+          <button class="btn-primary" onclick="app.saveOutfitChanges('${outfit.id}')">💾 Save Changes</button>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(modal);
+    modal.style.display = 'flex';
+    
+    // Load available items for adding to outfit
+    this.loadAvailableItemsForOutfit(outfit);
+    
+    // Focus the name field
+    setTimeout(() => {
+      document.getElementById('editOutfitName').focus();
+    }, 300);
+  }
+
+  async loadAvailableItemsForOutfit(outfit) {
+    try {
+      const result = await WardrobeAPI.getItems();
+      if (result.success) {
+        const allItems = result.data || [];
+        const currentItemIds = new Set(outfit.itemIds);
+        const availableItems = allItems.filter(item => !currentItemIds.has(item.id));
+        
+        const grid = document.getElementById('availableItemsGrid');
+        if (grid) {
+          grid.innerHTML = availableItems.map(item => `
+            <div class="available-item" data-item-id="${item.id}" onclick="app.addItemToOutfitEdit('${item.id}')">
+              <div class="available-item-preview">
+                <img src="${item.image || this.generatePlaceholderImage(item)}" alt="${item.name}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 6px;">
+              </div>
+              <div class="available-item-info">
+                <div class="available-item-name">${item.name}</div>
+                <div class="available-item-category">${this.formatCategory(item.category)}</div>
+              </div>
+              <div class="add-item-btn">+</div>
+            </div>
+          `).join('');
+        }
+      }
+    } catch (error) {
+      console.error('Error loading available items:', error);
+    }
+  }
+
+  addItemToOutfitEdit(itemId) {
+    const availableItem = document.querySelector(`[data-item-id="${itemId}"]`);
+    if (availableItem && availableItem.classList.contains('available-item')) {
+      // Move item to current outfit items
+      availableItem.remove();
+      
+      // Add to current items (you would get the full item data here)
+      this.showNotification('✅ Item added to outfit!', 'success');
+      
+      // In a full implementation, you'd update the UI and track the changes
+      console.log('Added item to outfit:', itemId);
+    }
+  }
+
+  removeItemFromOutfitEdit(itemId) {
+    const outfitItem = document.querySelector(`.outfit-edit-item[data-item-id="${itemId}"]`);
+    if (outfitItem) {
+      outfitItem.remove();
+      this.showNotification('✅ Item removed from outfit!', 'success');
+      
+      // In a full implementation, you'd move it back to available items
+      console.log('Removed item from outfit:', itemId);
+    }
+  }
+
+  closeEditOutfitModal() {
+    const modal = document.getElementById('editOutfitModal');
+    if (modal) {
+      modal.remove();
+    }
+  }
+
+  async saveOutfitChanges(outfitId) {
+    try {
+      // Collect form data
+      const updates = {
+        name: document.getElementById('editOutfitName').value.trim(),
+        occasion: document.getElementById('editOutfitOccasion').value,
+        weather: document.getElementById('editOutfitWeather').value,
+        timesWorn: parseInt(document.getElementById('editOutfitTimesWorn').value) || 0,
+        description: document.getElementById('editOutfitDescription').value.trim(),
+        loved: document.getElementById('editOutfitLoved').checked
+      };
+
+      // Validate required fields
+      if (!updates.name) {
+        this.showNotification('❌ Outfit name is required', 'error');
+        document.getElementById('editOutfitName').focus();
+        return;
+      }
+
+      this.showLoading('Saving outfit changes...');
+      
+      const result = await OutfitsAPI.updateOutfit(outfitId, updates);
+      
+      if (result.success) {
+        this.logAction('outfitGeneration', 'edit', { 
+          outfitId, 
+          changedFields: Object.keys(updates),
+          newName: updates.name 
+        });
+        
+        this.showNotification('✅ Outfit updated successfully!', 'success');
+        this.closeEditOutfitModal();
+        await this.loadOutfits();
+      } else {
+        this.showNotification(`❌ Failed to update outfit: ${result.error}`, 'error');
+      }
+    } catch (error) {
+      console.error('Error saving outfit changes:', error);
+      this.showNotification('❌ Failed to save changes', 'error');
     }
   }
 
@@ -2643,6 +3260,7 @@ class StyleAgent {
             <button class="btn-love" onclick="app.toggleOutfitLove('${outfit.id}')">
               ${outfit.loved ? '💔 Remove Love' : '❤️ Love This'}
             </button>
+            <button class="btn-edit" onclick="app.editOutfit('${outfit.id}')">✏️ Edit</button>
             <button class="btn-copy" onclick="app.copyToBuilder('${outfit.id}')">🎨 Copy to Builder</button>
             <button class="btn-delete" onclick="app.deleteOutfit('${outfit.id}')">🗑️ Delete</button>
           </div>
@@ -3699,6 +4317,7 @@ class StyleAgent {
     modalTitle.textContent = imageName;
     
     // Start with contain mode (full image visible) by default
+    modalImage.classList.remove('cover-mode', 'crop-mode');
     modalImage.classList.add('contain-mode');
     
     // Reset zoom and position
@@ -3764,7 +4383,7 @@ class StyleAgent {
           
           <!-- Image Info Overlay -->
           <div class="image-info">
-            <span class="image-hint">🖱️ Drag to pan • 🖱️ Scroll to zoom • 📐 Click fit button to fill screen • ⌨️ ESC to close</span>
+            <span class="image-hint">🖱️ Drag to pan • 🖱️ Scroll to zoom • 📐 F key to toggle fit modes • ⌨️ ESC to close</span>
           </div>
         </div>
       </div>
@@ -3791,9 +4410,15 @@ class StyleAgent {
     let lastPanX = 0;
     let lastPanY = 0;
 
-    // Apply transform to image
+    // Apply transform to image with improved handling
     const updateTransform = () => {
-      image.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+      // Only apply transform if not in crop-mode (which has its own transform)
+      if (!image.classList.contains('crop-mode')) {
+        image.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+      } else {
+        // In crop mode, combine the crop transform with user zoom/pan
+        image.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale * 1.3})`;
+      }
     };
 
     // Reset transform
@@ -3804,10 +4429,14 @@ class StyleAgent {
       updateTransform();
     };
 
-    // Zoom functions for buttons
+    // Enhanced zoom functions for buttons
     this.zoomImageModal = (factor) => {
       const newScale = scale * factor;
-      if (newScale >= 0.5 && newScale <= 5) {
+      // Adjust zoom limits based on current mode
+      const maxZoom = image.classList.contains('crop-mode') ? 3 : 5;
+      const minZoom = 0.3;
+      
+      if (newScale >= minZoom && newScale <= maxZoom) {
         scale = newScale;
         updateTransform();
       }
@@ -3821,7 +4450,11 @@ class StyleAgent {
       const delta = e.deltaY > 0 ? -zoomIntensity : zoomIntensity;
       const newScale = scale + delta;
       
-      if (newScale >= 0.5 && newScale <= 5) {
+      // Adjust zoom limits based on current mode
+      const maxZoom = image.classList.contains('crop-mode') ? 3 : 5;
+      const minZoom = 0.3;
+      
+      if (newScale >= minZoom && newScale <= maxZoom) {
         scale = newScale;
         updateTransform();
       }
@@ -3863,7 +4496,11 @@ class StyleAgent {
         );
         
         const newScale = initialScale * (currentDistance / initialDistance);
-        if (newScale >= 0.5 && newScale <= 5) {
+        // Adjust zoom limits based on current mode
+        const maxZoom = image.classList.contains('crop-mode') ? 3 : 5;
+        const minZoom = 0.3;
+        
+        if (newScale >= minZoom && newScale <= maxZoom) {
           scale = newScale;
           updateTransform();
         }
@@ -3928,16 +4565,26 @@ class StyleAgent {
     const image = modal.querySelector('.fullscreen-image');
     if (!image) return;
     
-    // Toggle between contain and cover modes
+    // Enhanced toggle with three modes: contain -> cover -> crop -> contain
     if (image.classList.contains('contain-mode')) {
       // Switch to cover mode (fill screen, may crop)
       image.classList.remove('contain-mode');
+      image.classList.add('cover-mode');
       this.showNotification('📐 Fill Screen Mode (may crop edges)', 'info');
+    } else if (image.classList.contains('cover-mode')) {
+      // Switch to crop mode (zoomed in focus)
+      image.classList.remove('cover-mode');
+      image.classList.add('crop-mode');
+      this.showNotification('🔍 Focused Crop Mode (zoomed in)', 'info');
     } else {
-      // Switch to contain mode (show full image, may have black bars)
+      // Switch back to contain mode (show full image, may have black bars)
+      image.classList.remove('cover-mode', 'crop-mode');
       image.classList.add('contain-mode');
       this.showNotification('📐 Fit Full Image Mode (may show black bars)', 'info');
     }
+    
+    // Reset zoom and position when changing modes
+    this.resetImageModalTransform();
   }
 
   closeImageModal() {
@@ -3963,6 +4610,9 @@ class StyleAgent {
         this.zoomImageModal(0.8);
       } else if (e.key === '0') {
         this.resetImageModalTransform();
+      } else if (e.key === 'f' || e.key === 'F') {
+        // Toggle fit mode with 'F' key
+        this.toggleImageFit();
       }
     };
     

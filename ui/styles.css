@@ -496,6 +496,508 @@ body {
   padding: 0;
 }
 
+/* Gallery View - Swipeable horizontal scrolling */
+.clothing-grid.gallery-view {
+  display: flex;
+  overflow-x: auto;
+  overflow-y: hidden;
+  gap: 16px;
+  padding: 8px 0 16px 0;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x mandatory;
+  
+  /* Hide scrollbar but keep functionality */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.clothing-grid.gallery-view::-webkit-scrollbar {
+  display: none;
+}
+
+.clothing-grid.gallery-view .clothing-item {
+  flex: 0 0 280px;
+  max-width: 280px;
+  scroll-snap-align: start;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transform-origin: center;
+}
+
+.clothing-grid.gallery-view .clothing-item:hover {
+  transform: scale(1.02) translateY(-8px);
+  box-shadow: 0 12px 24px rgba(0,0,0,0.15);
+  z-index: 10;
+}
+
+.clothing-grid.gallery-view .item-image {
+  height: 320px;
+  border-radius: 12px 12px 0 0;
+}
+
+.clothing-grid.gallery-view .item-info {
+  padding: 16px;
+  background: white;
+  border-radius: 0 0 12px 12px;
+}
+
+.clothing-grid.gallery-view .item-info h4 {
+  margin: 0 0 8px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #2d3748;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.clothing-grid.gallery-view .item-details {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.clothing-grid.gallery-view .category {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.clothing-grid.gallery-view .brand {
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.clothing-grid.gallery-view .item-colors {
+  font-size: 13px;
+  color: #64748b;
+  margin: 4px 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.clothing-grid.gallery-view .wear-count {
+  font-size: 11px;
+  color: #9ca3af;
+  margin-top: 4px;
+}
+
+.clothing-grid.gallery-view .favorite-star {
+  top: 12px;
+  right: 12px;
+  font-size: 20px;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+}
+
+.clothing-grid.gallery-view .laundry-status {
+  top: 12px;
+  left: 12px;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 6px;
+  border-radius: 8px;
+  font-size: 16px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  backdrop-filter: blur(8px);
+}
+
+/* Gallery navigation hints */
+.gallery-hint {
+  display: none;
+  text-align: center;
+  color: #64748b;
+  font-size: 14px;
+  margin-top: 16px;
+  animation: fadeInUp 0.6s ease-out;
+}
+
+.clothing-grid.gallery-view + .gallery-hint {
+  display: block;
+}
+
+.gallery-hint::before {
+  content: "👈 Swipe to browse • Tap to view details 👆";
+  display: block;
+  opacity: 0.7;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Touch-friendly improvements */
+@media (max-width: 768px) {
+  .clothing-grid.gallery-view .clothing-item {
+    flex: 0 0 260px;
+    max-width: 260px;
+  }
+  
+  .clothing-grid.gallery-view .item-image {
+    height: 280px;
+  }
+  
+  .clothing-grid.gallery-view {
+    gap: 12px;
+    padding: 8px 16px 16px 16px;
+    margin: 0 -16px;
+  }
+}
+
+/* Edit Item Modal */
+.edit-item-modal .modal-content {
+  max-width: 800px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.edit-item-form {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.form-section {
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.form-section h4 {
+  margin: 0 0 16px 0;
+  color: #2d3748;
+  font-size: 16px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.form-row:last-child {
+  margin-bottom: 0;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-group label {
+  font-weight: 600;
+  color: #4a5568;
+  font-size: 14px;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+  padding: 10px 12px;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 14px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.form-group textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.checkbox-group {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+.checkbox-group label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-weight: normal;
+}
+
+.checkbox-group input[type="checkbox"] {
+  width: auto;
+  margin: 0;
+}
+
+.checkbox-label {
+  color: #4a5568;
+  font-size: 14px;
+}
+
+.current-image-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border: 2px dashed #e2e8f0;
+  border-radius: 8px;
+  background: white;
+}
+
+.current-image-preview img {
+  border: 1px solid #e2e8f0;
+}
+
+.image-note {
+  color: #718096;
+  font-size: 12px;
+  margin: 0;
+  text-align: center;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 20px;
+  border-top: 1px solid #e2e8f0;
+  background: #f8fafc;
+  margin: 0;
+}
+
+/* Outfit editing modal styles */
+.edit-outfit-modal .modal-content {
+  max-width: 900px;
+  width: 90%;
+  max-height: 95vh;
+  overflow-y: auto;
+}
+
+.current-outfit-items {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.outfit-edit-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: white;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  transition: border-color 0.2s;
+}
+
+.outfit-edit-item:hover {
+  border-color: #cbd5e0;
+}
+
+.outfit-item-preview img {
+  border: 1px solid #e2e8f0;
+}
+
+.outfit-item-info {
+  flex: 1;
+}
+
+.outfit-item-name {
+  font-weight: 600;
+  color: #2d3748;
+  margin-bottom: 4px;
+}
+
+.outfit-item-details {
+  font-size: 14px;
+  color: #718096;
+}
+
+.btn-remove-item {
+  background: #fed7d7;
+  color: #c53030;
+  border: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: bold;
+  transition: all 0.2s;
+}
+
+.btn-remove-item:hover {
+  background: #fc8181;
+  color: white;
+  transform: scale(1.1);
+}
+
+.add-items-section {
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 2px solid #e2e8f0;
+}
+
+.add-items-section h5 {
+  margin: 0 0 8px 0;
+  color: #2d3748;
+  font-size: 16px;
+}
+
+.help-text {
+  color: #718096;
+  font-size: 14px;
+  margin: 0 0 16px 0;
+}
+
+.available-items-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 12px;
+  background: #f7fafc;
+  border-radius: 8px;
+}
+
+.available-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  background: white;
+  border: 2px solid #e2e8f0;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.available-item:hover {
+  border-color: #667eea;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.available-item-preview img {
+  border: 1px solid #e2e8f0;
+}
+
+.available-item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.available-item-name {
+  font-weight: 600;
+  font-size: 12px;
+  color: #2d3748;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.available-item-category {
+  font-size: 11px;
+  color: #718096;
+}
+
+.add-item-btn {
+  background: #48bb78;
+  color: white;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.no-image-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 300px;
+  height: 200px;
+  background: #f7fafc;
+  border: 2px dashed #e2e8f0;
+  border-radius: 8px;
+  color: #9ca3af;
+  font-size: 48px;
+}
+
+.btn-edit {
+  background: #667eea;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.btn-edit:hover {
+  background: #5a6fd8;
+}
+
+/* Mobile responsiveness for edit form */
+@media (max-width: 768px) {
+  .edit-item-modal .modal-content,
+  .edit-outfit-modal .modal-content {
+    width: 95%;
+    max-height: 95vh;
+  }
+  
+  .form-row {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  
+  .form-section {
+    padding: 16px;
+  }
+  
+  .available-items-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .available-item {
+    flex-direction: column;
+    text-align: center;
+  }
+}
+
 /* Loading state */
 .loading {
   text-align: center;
@@ -1904,40 +2406,64 @@ body {
   margin: 0;
   overflow: hidden;
   z-index: 9998;
+  /* Account for header height to prevent overlap */
+  padding-top: 80px; /* Height of fullscreen-header */
+  box-sizing: border-box;
 }
 
 .fullscreen-image {
-  /* Let the image scale to fill maximum space while preserving aspect ratio */
-  min-width: 100vw;
-  min-height: 100vh;
-  width: auto;
-  height: auto;
-  max-width: none;
-  max-height: none;
-  object-fit: cover; /* This will fill the entire container */
-  object-position: center center; /* Keep the center of the image visible */
+  /* Improved sizing for better zoom and crop handling */
+  width: 100%;
+  height: 100%;
+  object-fit: contain; /* Default to contain to show full image */
+  object-position: center center;
   cursor: grab;
   user-select: none;
   transition: transform 0.2s ease;
   transform-origin: center center;
   border-radius: 0;
   box-shadow: none;
+  /* Ensure image maintains aspect ratio */
+  max-width: 100%;
+  max-height: 100%;
+  min-width: auto;
+  min-height: auto;
 }
 
 /* Alternative: If you want to preserve the full image without any cropping */
 .fullscreen-image.contain-mode {
+  object-fit: contain;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
   min-width: auto;
   min-height: auto;
-  max-width: 100vw;
-  max-height: 100vh;
-  object-fit: contain;
 }
 
 /* Alternative: Create a zoomed crop mode */
+.fullscreen-image.cover-mode {
+  object-fit: cover;
+  object-position: center center;
+  width: 100%;
+  height: 100%;
+  min-width: 100%;
+  min-height: 100%;
+  max-width: none;
+  max-height: none;
+}
+
+/* Enhanced crop mode for clothing focus */
 .fullscreen-image.crop-mode {
   object-fit: cover;
   object-position: center 40%; /* Focus on shirt/skirt area */
   transform: scale(1.3); /* Zoom in to crop outer areas */
+  width: 100%;
+  height: 100%;
+  min-width: 100%;
+  min-height: 100%;
+  max-width: none;
+  max-height: none;
 }
 
 .fullscreen-image:active {
