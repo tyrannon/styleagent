@@ -171,7 +171,14 @@ class OutfitsAPI {
 
 class PhotoAPI {
   static async isAvailable() {
-    return await ipcRenderer.invoke('photo:isAvailable');
+    try {
+      const result = await ipcRenderer.invoke('photo:isAvailable');
+      console.log('🔍 PhotoAPI.isAvailable() result:', result);
+      return result && result.available;
+    } catch (error) {
+      console.error('❌ PhotoAPI.isAvailable() error:', error);
+      return false;
+    }
   }
 
   static async generateOutfit(items, options = {}) {
@@ -188,6 +195,114 @@ class PhotoAPI {
 
   static async setModel(modelName) {
     return await ipcRenderer.invoke('photo:setModel', modelName);
+  }
+
+  // Batch generation methods
+  static async batchGenerate(items, options = {}) {
+    return await ipcRenderer.invoke('photo:batchGenerate', items, options);
+  }
+
+  static async pauseBatchGeneration() {
+    return await ipcRenderer.invoke('photo:pauseBatchGeneration');
+  }
+
+  static async resumeBatchGeneration() {
+    return await ipcRenderer.invoke('photo:resumeBatchGeneration');
+  }
+
+  static async cancelBatchGeneration() {
+    return await ipcRenderer.invoke('photo:cancelBatchGeneration');
+  }
+
+  static onBatchProgress(callback) {
+    ipcRenderer.on('photo:batchProgress', (event, progress) => {
+      callback(progress);
+    });
+  }
+
+  static removeBatchProgressListener() {
+    ipcRenderer.removeAllListeners('photo:batchProgress');
+  }
+
+  // Detailed progress event listeners
+  static onPipelineProgress(callback) {
+    ipcRenderer.on('photo:pipelineProgress', (event, progress) => {
+      callback(progress);
+    });
+  }
+
+  static onGenerationProgress(callback) {
+    ipcRenderer.on('photo:generationProgress', (event, progress) => {
+      callback(progress);
+    });
+  }
+
+  static onItemStarted(callback) {
+    ipcRenderer.on('photo:itemStarted', (event, data) => {
+      callback(data);
+    });
+  }
+
+  static onItemCompleted(callback) {
+    ipcRenderer.on('photo:itemCompleted', (event, data) => {
+      callback(data);
+    });
+  }
+
+  static onItemFailed(callback) {
+    ipcRenderer.on('photo:itemFailed', (event, data) => {
+      callback(data);
+    });
+  }
+
+  static onModelLoading(callback) {
+    ipcRenderer.on('photo:modelLoading', (event, data) => {
+      callback(data);
+    });
+  }
+
+  static onMemoryUsage(callback) {
+    ipcRenderer.on('photo:memoryUsage', (event, data) => {
+      callback(data);
+    });
+  }
+
+  static onGenerationStarting(callback) {
+    ipcRenderer.on('photo:generationStarting', (event, data) => {
+      callback(data);
+    });
+  }
+
+  static onGenerationCompleted(callback) {
+    ipcRenderer.on('photo:generationCompleted', (event, data) => {
+      callback(data);
+    });
+  }
+
+  static onGenerationError(callback) {
+    ipcRenderer.on('photo:generationError', (event, data) => {
+      callback(data);
+    });
+  }
+
+  static onGenerationLog(callback) {
+    ipcRenderer.on('photo:generationLog', (event, data) => {
+      callback(data);
+    });
+  }
+
+  static removeDetailedProgressListeners() {
+    ipcRenderer.removeAllListeners('photo:pipelineProgress');
+    ipcRenderer.removeAllListeners('photo:generationProgress');
+    ipcRenderer.removeAllListeners('photo:itemStarted');
+    ipcRenderer.removeAllListeners('photo:itemCompleted');
+    ipcRenderer.removeAllListeners('photo:itemFailed');
+    ipcRenderer.removeAllListeners('photo:modelLoading');
+    ipcRenderer.removeAllListeners('photo:memoryUsage');
+    ipcRenderer.removeAllListeners('photo:generationStarting');
+    ipcRenderer.removeAllListeners('photo:generationCompleted');
+    ipcRenderer.removeAllListeners('photo:generationError');
+    ipcRenderer.removeAllListeners('photo:generationLog');
   }
 }
 
@@ -363,6 +478,9 @@ class StyleAgent {
 
     // Professional Camera event listeners
     this.initializeCameraEventListeners();
+
+    // Batch Generation Modal
+    this.initializeBatchGenerationModal();
   }
 
   openModal(modalId) {
@@ -620,6 +738,16 @@ class StyleAgent {
 
     // Initialize clear search button state
     this.updateClearSearchButton();
+
+    // Batch Generation Button
+    const batchGenerateBtn = document.getElementById('batchGenerateBtn');
+    if (batchGenerateBtn) {
+      console.log('✅ Batch generate button found and event listener added');
+      batchGenerateBtn.addEventListener('click', () => {
+        console.log('🔥 BATCH GENERATE BUTTON CLICKED!');
+        this.openBatchGenerationModal();
+      });
+    }
     
     // Add debug functionality
     this.addDebugFunctionality();
@@ -4826,6 +4954,7 @@ class StyleAgent {
     const flipCameraBtn = document.getElementById('flipCameraBtn');
     const gridToggle = document.getElementById('gridToggle');
     const exposureSlider = document.getElementById('exposureSlider');
+    const cameraSourceSelect = document.getElementById('cameraSourceSelect');
 
     if (closeCameraBtn) closeCameraBtn.addEventListener('click', () => this.closeProfessionalCamera());
     if (shutterBtn) shutterBtn.addEventListener('click', () => this.capturePhoto());
@@ -4834,6 +4963,7 @@ class StyleAgent {
     if (flipCameraBtn) flipCameraBtn.addEventListener('click', () => this.flipCamera());
     if (gridToggle) gridToggle.addEventListener('click', () => this.toggleGrid());
     if (exposureSlider) exposureSlider.addEventListener('input', (e) => this.adjustExposure(e.target.value));
+    if (cameraSourceSelect) cameraSourceSelect.addEventListener('change', () => this.changeCameraSource());
 
     // Camera mode buttons
     const modeButtons = document.querySelectorAll('.mode-btn');
@@ -4887,15 +5017,54 @@ class StyleAgent {
         this.camera.stream.getTracks().forEach(track => track.stop());
       }
 
-      // Request camera stream
-      const constraints = {
-        video: {
-          facingMode: this.camera.currentCamera,
-          width: { ideal: 1920 },
-          height: { ideal: 1080 }
-        },
-        audio: false
-      };
+      // Get camera source preference
+      const cameraSourceSelect = document.getElementById('cameraSourceSelect');
+      const selectedSource = cameraSourceSelect?.value || this.camera.currentCamera;
+      
+      let constraints;
+      
+      if (selectedSource === 'continuity') {
+        // Try to detect Continuity Camera devices
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const continuityDevice = devices.find(device => 
+          device.kind === 'videoinput' && 
+          (device.label.includes('iPhone') || device.label.includes('iPad') || device.label.includes('Continuity'))
+        );
+        
+        if (continuityDevice) {
+          constraints = {
+            video: {
+              deviceId: { exact: continuityDevice.deviceId },
+              width: { ideal: 1920 },
+              height: { ideal: 1080 }
+            },
+            audio: false
+          };
+        } else {
+          // Fallback to environment camera if no Continuity Camera found
+          constraints = {
+            video: {
+              facingMode: 'environment',
+              width: { ideal: 1920 },
+              height: { ideal: 1080 }
+            },
+            audio: false
+          };
+          this.showNotification('📱 Continuity Camera not found, using back camera', 'info');
+        }
+      } else {
+        // Standard camera constraints
+        constraints = {
+          video: {
+            facingMode: selectedSource,
+            width: { ideal: 1920 },
+            height: { ideal: 1080 }
+          },
+          audio: false
+        };
+      }
+      
+      console.log('📷 Camera constraints:', constraints);
 
       this.camera.stream = await navigator.mediaDevices.getUserMedia(constraints);
       video.srcObject = this.camera.stream;
@@ -4909,8 +5078,43 @@ class StyleAgent {
 
     } catch (error) {
       console.error('❌ Failed to start camera:', error);
-      throw new Error('Could not access camera');
+      
+      // Try fallback to any available camera
+      try {
+        console.log('🔄 Trying fallback camera...');
+        const fallbackConstraints = {
+          video: { width: { ideal: 1280 }, height: { ideal: 720 } },
+          audio: false
+        };
+        
+        this.camera.stream = await navigator.mediaDevices.getUserMedia(fallbackConstraints);
+        const video = document.getElementById('cameraVideo');
+        video.srcObject = this.camera.stream;
+        
+        await new Promise((resolve) => {
+          video.addEventListener('loadedmetadata', resolve, { once: true });
+        });
+        
+        console.log('✅ Fallback camera started');
+        this.showNotification('📷 Camera started (fallback mode)', 'info');
+      } catch (fallbackError) {
+        console.error('❌ Fallback camera also failed:', fallbackError);
+        this.showNotification('❌ Camera access denied or unavailable', 'error');
+        throw new Error('Could not access camera');
+      }
     }
+  }
+
+  async changeCameraSource() {
+    console.log('🔄 Changing camera source...');
+    
+    if (this.camera.stream) {
+      // Stop current stream
+      this.camera.stream.getTracks().forEach(track => track.stop());
+    }
+    
+    // Start new stream with selected source
+    await this.startCamera();
   }
 
   async capturePhoto() {
@@ -4970,48 +5174,182 @@ class StyleAgent {
   }
 
   async usePhoto() {
+    console.log('🎬 === CAMERA CAPTURE DEBUG SESSION START ===');
+    const sessionId = `camera-${Date.now()}`;
+    console.log(`📋 Session ID: ${sessionId}`);
+    
+    // Step 1: Validate captured photo exists
+    console.log('📋 Step 1: Checking captured photo exists...');
     if (!this.camera.capturedPhoto) {
+      console.error('❌ Step 1 FAILED: No photo captured');
       this.showNotification('❌ No photo to use', 'error');
       return;
     }
+    console.log('✅ Step 1 SUCCESS: Photo exists, size:', this.camera.capturedPhoto.length, 'characters');
+    console.log('📄 Photo preview:', this.camera.capturedPhoto.substring(0, 100) + '...');
 
-    console.log('✅ Using captured photo for analysis...');
+    // Step 2: Close camera interface
+    console.log('📋 Step 2: Closing camera interface...');
+    try {
+      await this.closeProfessionalCamera();
+      console.log('✅ Step 2 SUCCESS: Camera closed');
+    } catch (closeError) {
+      console.error('❌ Step 2 FAILED:', closeError);
+      // Continue anyway - not critical
+    }
+
+    // Step 3: Start analysis pipeline
+    console.log('📋 Step 3: Starting analysis pipeline...');
+    this.showNotification('📸 Saving and analyzing your photo...', 'info');
     
     try {
-      // Close camera
-      await this.closeProfessionalCamera();
-
-      // Start analysis pipeline
-      this.showNotification('📸 Saving and analyzing your photo...', 'info');
+      // Step 4: Call analysis API
+      console.log('📋 Step 4: Calling analyzeCapturedPhoto API...');
+      console.log('📤 API call parameters:', {
+        dataURLLength: this.camera.capturedPhoto.length,
+        options: { generatePlaceholder: true }
+      });
       
-      // Save the captured photo and analyze it
       const analysisResult = await ClothingAnalysisAPI.analyzeCapturedPhoto(this.camera.capturedPhoto, {
         generatePlaceholder: true
       });
+      
+      console.log('📥 Step 4 API Response received:', {
+        success: analysisResult.success,
+        hasItem: !!analysisResult.item,
+        hasItems: !!analysisResult.items,
+        error: analysisResult.error
+      });
+      console.log('📄 Full analysis result:', JSON.stringify(analysisResult, null, 2));
 
       if (analysisResult.success) {
-        console.log('✅ Camera photo analyzed successfully:', analysisResult);
+        console.log('✅ Step 4 SUCCESS: Analysis completed');
         this.showNotification('✅ Photo analyzed! Adding to wardrobe...', 'success');
         
-        // Add analyzed items to wardrobe
-        if (analysisResult.items && analysisResult.items.length > 0) {
-          const addResult = await ClothingAnalysisAPI.addAnalyzedItems(analysisResult.items);
+        // Step 5: Prepare items for wardrobe
+        console.log('📋 Step 5: Preparing items for wardrobe addition...');
+        const itemsToAdd = analysisResult.items ? analysisResult.items : [analysisResult.item];
+        
+        console.log('📦 Items to add:', {
+          count: itemsToAdd.length,
+          firstItemValid: !!(itemsToAdd[0]),
+          firstItemPreview: itemsToAdd[0] ? {
+            id: itemsToAdd[0].id,
+            name: itemsToAdd[0].name,
+            category: itemsToAdd[0].category,
+            hasImage: !!itemsToAdd[0].image
+          } : null
+        });
+        
+        if (itemsToAdd && itemsToAdd.length > 0 && itemsToAdd[0]) {
+          console.log('✅ Step 5 SUCCESS: Items prepared');
+          
+          // Step 6: Add items to wardrobe
+          console.log('📋 Step 6: Adding items to wardrobe...');
+          const addResult = await ClothingAnalysisAPI.addAnalyzedItems(itemsToAdd);
+          console.log('📥 Step 6 API Response:', {
+            success: addResult.success,
+            error: addResult.error,
+            fullResult: addResult
+          });
+          
           if (addResult.success) {
-            this.showNotification(`✅ Added ${analysisResult.items.length} item(s) to wardrobe!`, 'success');
-            // Refresh wardrobe display
+            console.log('✅ Step 6 SUCCESS: Items added to wardrobe');
+            this.showNotification(`✅ Added ${itemsToAdd.length} item(s) to wardrobe!`, 'success');
+            
+            // Step 7: Refresh wardrobe display
+            console.log('📋 Step 7: Refreshing wardrobe display...');
             await this.loadAndDisplayItems();
+            console.log('✅ Step 7 SUCCESS: Wardrobe refreshed');
+            console.log('🎉 === CAMERA CAPTURE SUCCESS ===');
+            return;
           } else {
-            this.showNotification('❌ Failed to add items to wardrobe', 'error');
+            console.error('❌ Step 6 FAILED: Could not add items to wardrobe');
+            this.showNotification('❌ Failed to add items to wardrobe: ' + (addResult.error || 'Unknown error'), 'error');
           }
+        } else {
+          console.error('❌ Step 5 FAILED: No valid items to add');
+          this.showNotification('❌ No valid items to add from analysis', 'error');
         }
       } else {
+        console.log('⚠️ Step 4 PARTIAL: Analysis failed, checking for fallback item...');
+        
+        if (analysisResult.item) {
+          console.log('📋 Step 5-FALLBACK: Adding fallback item to wardrobe...');
+          console.log('📦 Fallback item:', analysisResult.item);
+          
+          const addResult = await ClothingAnalysisAPI.addAnalyzedItems([analysisResult.item]);
+          console.log('📥 Fallback add result:', addResult);
+          
+          if (addResult.success) {
+            console.log('✅ Step 5-FALLBACK SUCCESS: Fallback item added');
+            this.showNotification(`✅ Added item to wardrobe (with basic info)!`, 'success');
+            await this.loadAndDisplayItems();
+            console.log('🎉 === CAMERA CAPTURE SUCCESS (FALLBACK) ===');
+            return;
+          }
+        }
+        
+        console.error('❌ Step 4 FAILED: Analysis failed completely');
         throw new Error(analysisResult.error || 'Analysis failed');
       }
 
     } catch (error) {
-      console.error('❌ Failed to use photo:', error);
+      console.error('💥 MAIN PIPELINE FAILURE:', error);
+      console.error('📄 Error details:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      });
+      
       this.showNotification('❌ Failed to analyze photo: ' + error.message, 'error');
+      
+      // Step 8: Emergency fallback
+      console.log('📋 Step 8-EMERGENCY: Creating emergency fallback item...');
+      try {
+        const timestamp = Date.now();
+        const fallbackItem = {
+          id: `camera-${timestamp}`,
+          name: `Camera Capture ${new Date().toLocaleTimeString()}`,
+          category: 'tops',
+          color: ['unknown'],
+          material: ['unknown'],
+          image: this.camera.capturedPhoto,
+          createdAt: new Date().toISOString(),
+          condition: 'good',
+          season: ['all-season'],
+          occasion: ['casual'],
+          tags: ['camera-capture', 'emergency-fallback'],
+          notes: `Captured with camera - please edit details (Session: ${sessionId})`
+        };
+        
+        console.log('📦 Emergency fallback item:', fallbackItem);
+        
+        const emergencyResult = await ClothingAnalysisAPI.addAnalyzedItems([fallbackItem]);
+        console.log('📥 Emergency add result:', emergencyResult);
+        
+        if (emergencyResult.success) {
+          console.log('✅ Step 8-EMERGENCY SUCCESS: Emergency item added');
+          this.showNotification('📸 Photo saved! Please edit item details', 'info');
+          await this.loadAndDisplayItems();
+          console.log('🎉 === CAMERA CAPTURE SUCCESS (EMERGENCY) ===');
+        } else {
+          console.error('❌ Step 8-EMERGENCY FAILED:', emergencyResult);
+          // Show manual entry modal as ultimate fallback
+          this.showManualEntryModal(this.camera.capturedPhoto);
+        }
+      } catch (emergencyError) {
+        console.error('💥 EMERGENCY FALLBACK FAILURE:', emergencyError);
+        console.error('📄 Emergency error details:', {
+          message: emergencyError.message,
+          stack: emergencyError.stack
+        });
+        // Show manual entry modal as ultimate fallback
+        this.showManualEntryModal(this.camera.capturedPhoto);
+      }
     }
+    
+    console.log('🎬 === CAMERA CAPTURE DEBUG SESSION END ===');
   }
 
   async flipCamera() {
@@ -5025,6 +5363,112 @@ class StyleAgent {
     } catch (error) {
       console.error('❌ Failed to flip camera:', error);
       this.showNotification('❌ Failed to switch camera', 'error');
+    }
+  }
+
+  // ==================== MANUAL ENTRY MODAL ====================
+
+  showManualEntryModal(photoDataURL) {
+    console.log('📝 Showing manual entry modal as fallback...');
+    
+    // Show the photo in the modal
+    const previewImage = document.getElementById('manualPreviewImage');
+    if (previewImage && photoDataURL) {
+      previewImage.src = photoDataURL;
+    }
+    
+    // Show notification about fallback
+    this.showNotification('🛠️ Please manually enter item details', 'info');
+    
+    // Store the photo for later use
+    this.manualEntryPhoto = photoDataURL;
+    
+    // Show the modal
+    this.showModal('manualEntryModal');
+    
+    // Set up event listeners if not already done
+    this.initializeManualEntryListeners();
+  }
+
+  initializeManualEntryListeners() {
+    if (this.manualEntryListenersInitialized) return;
+    
+    const closeBtn = document.getElementById('closeManualEntryBtn');
+    const cancelBtn = document.getElementById('cancelManualEntryBtn');
+    const form = document.getElementById('manualItemForm');
+    const backdrop = document.getElementById('manualEntryBackdrop');
+    
+    if (closeBtn) closeBtn.addEventListener('click', () => this.closeManualEntryModal());
+    if (cancelBtn) cancelBtn.addEventListener('click', () => this.closeManualEntryModal());
+    if (backdrop) backdrop.addEventListener('click', () => this.closeManualEntryModal());
+    if (form) form.addEventListener('submit', (e) => this.handleManualItemSubmit(e));
+    
+    this.manualEntryListenersInitialized = true;
+  }
+
+  closeManualEntryModal() {
+    this.closeModal('manualEntryModal');
+    this.manualEntryPhoto = null;
+  }
+
+  async handleManualItemSubmit(event) {
+    event.preventDefault();
+    
+    console.log('📝 Processing manual item submission...');
+    
+    // Get form values
+    const name = document.getElementById('manualItemName').value.trim();
+    const category = document.getElementById('manualItemCategory').value;
+    const color = document.getElementById('manualItemColor').value.trim();
+    const material = document.getElementById('manualItemMaterial').value.trim();
+    const condition = document.getElementById('manualItemCondition').value;
+    const season = document.getElementById('manualItemSeason').value;
+    const notes = document.getElementById('manualItemNotes').value.trim();
+    
+    // Validate required fields
+    if (!name || !category) {
+      this.showNotification('❌ Please fill in required fields (Name and Category)', 'error');
+      return;
+    }
+    
+    // Create item object
+    const timestamp = Date.now();
+    const manualItem = {
+      id: `manual-${timestamp}`,
+      name: name,
+      category: category,
+      color: color ? [color] : ['unknown'],
+      material: material ? [material] : ['unknown'],
+      condition: condition,
+      season: [season],
+      occasion: ['casual'],
+      image: this.manualEntryPhoto,
+      createdAt: new Date().toISOString(),
+      tags: ['manual-entry'],
+      notes: notes || 'Manually entered item',
+      favorite: false,
+      timesWorn: 0,
+      lastWorn: null
+    };
+    
+    console.log('📦 Manual item created:', manualItem);
+    
+    try {
+      // Add to wardrobe
+      const result = await ClothingAnalysisAPI.addAnalyzedItems([manualItem]);
+      
+      if (result.success) {
+        console.log('✅ Manual item added successfully');
+        this.showNotification('✅ Item added to wardrobe!', 'success');
+        this.closeManualEntryModal();
+        await this.loadAndDisplayItems();
+      } else {
+        console.error('❌ Failed to add manual item:', result);
+        this.showNotification('❌ Failed to add item: ' + (result.error || 'Unknown error'), 'error');
+      }
+    } catch (error) {
+      console.error('❌ Error adding manual item:', error);
+      this.showNotification('❌ Error adding item: ' + error.message, 'error');
     }
   }
 
@@ -5135,6 +5579,867 @@ class StyleAgent {
     
     console.log('✅ Professional Camera closed');
   }
+
+  // ==================== BATCH GENERATION ====================
+
+  initializeBatchGenerationModal() {
+    console.log('📸 Initializing Batch Generation Modal...');
+
+    // Batch generation state
+    this.batchGeneration = {
+      isRunning: false,
+      isPaused: false,
+      currentIndex: 0,
+      totalItems: 0,
+      results: [],
+      startTime: null,
+      settings: {
+        quality: 'standard',
+        quantity: 5,
+        category: ''
+      }
+    };
+
+    // Modal elements
+    const batchModal = document.getElementById('batchGenerationModal');
+    const batchBackdrop = document.getElementById('batchGenerationBackdrop');
+    const closeBatchBtn = document.getElementById('closeBatchGenerationBtn');
+
+    // Setup phase elements
+    const qualityOptions = document.querySelectorAll('input[name="quality"]');
+    const quantityOptions = document.querySelectorAll('input[name="quantity"]');
+    const categoryFilter = document.getElementById('batchCategoryFilter');
+    const cancelBatchBtn = document.getElementById('cancelBatchBtn');
+    const startBatchBtn = document.getElementById('startBatchBtn');
+
+    // Progress phase elements
+    const pauseBatchBtn = document.getElementById('pauseBatchBtn');
+    const resumeBatchBtn = document.getElementById('resumeBatchBtn');
+    const cancelBatchProgressBtn = document.getElementById('cancelBatchProgressBtn');
+
+    // Results phase elements
+    const generateMoreBtn = document.getElementById('generateMoreBtn');
+    const closeBatchResultsBtn = document.getElementById('closeBatchResultsBtn');
+
+    // Event listeners for modal close
+    closeBatchBtn.addEventListener('click', () => this.closeBatchGenerationModal());
+    batchBackdrop.addEventListener('click', () => this.closeBatchGenerationModal());
+
+    // Setup phase listeners
+    qualityOptions.forEach(option => {
+      option.addEventListener('change', () => {
+        this.batchGeneration.settings.quality = option.value;
+        this.updateBatchSummary();
+      });
+    });
+
+    quantityOptions.forEach(option => {
+      option.addEventListener('change', () => {
+        this.batchGeneration.settings.quantity = option.value;
+        this.updateBatchSummary();
+      });
+    });
+
+    categoryFilter.addEventListener('change', () => {
+      this.batchGeneration.settings.category = categoryFilter.value;
+      this.updateBatchSummary();
+    });
+
+    cancelBatchBtn.addEventListener('click', () => this.closeBatchGenerationModal());
+    startBatchBtn.addEventListener('click', () => this.startBatchGeneration());
+
+    // Progress phase listeners
+    pauseBatchBtn.addEventListener('click', () => this.pauseBatchGeneration());
+    resumeBatchBtn.addEventListener('click', () => this.resumeBatchGeneration());
+    cancelBatchProgressBtn.addEventListener('click', () => this.cancelBatchGeneration());
+
+    // Results phase listeners
+    generateMoreBtn.addEventListener('click', () => this.resetBatchGeneration());
+    closeBatchResultsBtn.addEventListener('click', () => this.closeBatchGenerationModal());
+
+    // Listen for batch progress updates
+    PhotoAPI.onBatchProgress((progress) => this.updateBatchProgress(progress));
+
+    // Set up detailed progress listeners
+    this.setupDetailedProgressListeners();
+
+    console.log('✅ Batch Generation Modal initialized');
+  }
+
+  async openBatchGenerationModal() {
+    console.log('📸 Opening Batch Generation Modal...');
+
+    // Check if photo generation is available
+    console.log('🔍 Checking photo availability...');
+    const photoAvailable = await PhotoAPI.isAvailable();
+    console.log('📊 Photo availability result:', photoAvailable);
+    if (!photoAvailable) {
+      console.log('❌ Photo generation not available');
+      this.showNotification('Photo generation is not available', 'error');
+      return;
+    }
+
+    // Reset to setup phase
+    this.resetBatchGeneration();
+
+    // Update summary with current wardrobe
+    console.log('📊 Current items count:', this.currentItems.length);
+    this.updateBatchSummary();
+
+    // Open modal
+    console.log('🚀 Opening modal...');
+    this.openModal('batchGenerationModal');
+  }
+
+  closeBatchGenerationModal() {
+    console.log('📸 Closing Batch Generation Modal...');
+
+    // Cancel any running generation
+    if (this.batchGeneration.isRunning && !this.batchGeneration.isPaused) {
+      this.cancelBatchGeneration();
+    }
+
+    // Clean up listeners
+    PhotoAPI.removeBatchProgressListener();
+    PhotoAPI.removeDetailedProgressListeners();
+
+    this.closeModal('batchGenerationModal');
+  }
+
+  resetBatchGeneration() {
+    console.log('🔄 Resetting Batch Generation...');
+
+    // Reset state
+    this.batchGeneration.isRunning = false;
+    this.batchGeneration.isPaused = false;
+    this.batchGeneration.currentIndex = 0;
+    this.batchGeneration.totalItems = 0;
+    this.batchGeneration.results = [];
+    this.batchGeneration.startTime = null;
+
+    // Show setup phase
+    document.getElementById('batchSetupPhase').style.display = 'block';
+    document.getElementById('batchProgressPhase').style.display = 'none';
+    document.getElementById('batchResultsPhase').style.display = 'none';
+
+    // Reset form to defaults
+    document.getElementById('qualityStandard').checked = true;
+    document.getElementById('quantity5').checked = true;
+    document.getElementById('batchCategoryFilter').value = '';
+
+    this.batchGeneration.settings = {
+      quality: 'standard',
+      quantity: 5,
+      category: ''
+    };
+
+    // Reset all progress displays
+    this.resetProgressDisplays();
+
+    this.updateBatchSummary();
+  }
+
+  resetProgressDisplays() {
+    // Reset pipeline progress
+    document.getElementById('pipelineFill').style.width = '0%';
+    document.getElementById('pipelinePercentage').textContent = '0%';
+    document.getElementById('pipelineStatus').textContent = 'Initializing...';
+    document.getElementById('pipelineCurrentComponent').textContent = 'Loading components...';
+    document.getElementById('pipelineComponentCount').textContent = '0/7';
+
+    // Reset generation progress
+    document.getElementById('generationFill').style.width = '0%';
+    document.getElementById('generationPercentage').textContent = '0%';
+    document.getElementById('generationStatus').textContent = 'Waiting...';
+    document.getElementById('generationCurrentStep').textContent = 'Ready to generate...';
+    document.getElementById('generationStepCount').textContent = '0/25';
+    document.getElementById('generationSpeed').textContent = '0.0s/step';
+
+    // Reset batch progress
+    document.getElementById('batchFill').style.width = '0%';
+    document.getElementById('batchPercentage').textContent = '0%';
+    document.getElementById('batchStatus').textContent = 'Starting...';
+    document.getElementById('batchJobsCompleted').textContent = '0 jobs completed';
+    document.getElementById('batchJobsTotal').textContent = '0 total jobs';
+
+    // Reset current processing
+    document.getElementById('currentJobId').textContent = 'Job: waiting...';
+    document.getElementById('currentItemName').textContent = 'Waiting for first item...';
+    document.getElementById('currentItemDetails').textContent = 'Ready to start processing';
+    document.getElementById('currentJobStartTime').textContent = '--:--:--';
+    document.getElementById('currentJobElapsed').textContent = '0s';
+    document.getElementById('currentJobETA').textContent = '--:--';
+
+    // Reset completed items
+    document.getElementById('completedItemsGrid').innerHTML = '';
+    document.getElementById('completedCount').textContent = '0 items';
+
+    // Reset processing stats
+    document.getElementById('totalProcessingTime').textContent = '0s';
+    document.getElementById('averageProcessingTime').textContent = '0s';
+    document.getElementById('overallETA').textContent = '--:--';
+    document.getElementById('processingSpeed').textContent = '0.0 items/min';
+
+    // Reset overall progress
+    document.getElementById('progressCurrent').textContent = '0';
+    document.getElementById('progressTotal').textContent = '5';
+  }
+
+  updateBatchSummary() {
+    console.log('📊 Updating Batch Summary...');
+
+    const { quality, quantity, category } = this.batchGeneration.settings;
+
+    // Calculate items to process
+    let itemsToProcess = 0;
+    if (quantity === 'all') {
+      // Filter items by category if specified
+      const filteredItems = category 
+        ? this.currentItems.filter(item => item.category === category)
+        : this.currentItems;
+      itemsToProcess = filteredItems.length;
+    } else {
+      itemsToProcess = parseInt(quantity);
+    }
+
+    // Estimate time based on quality
+    let timePerItem = 15; // seconds
+    switch (quality) {
+      case 'preview': timePerItem = 5; break;
+      case 'standard': timePerItem = 15; break;
+      case 'high': timePerItem = 30; break;
+    }
+
+    const totalSeconds = itemsToProcess * timePerItem;
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    const estimatedTime = minutes > 0 
+      ? `${minutes}${seconds > 0 ? `-${minutes + 1}` : ''} minute${minutes !== 1 ? 's' : ''}`
+      : `${seconds} seconds`;
+
+    // Update UI
+    document.getElementById('itemsToProcess').textContent = itemsToProcess;
+    document.getElementById('estimatedTime').textContent = estimatedTime;
+
+    // Store for generation
+    this.batchGeneration.totalItems = itemsToProcess;
+  }
+
+  async startBatchGeneration() {
+    console.log('🚀 Starting Batch Generation...');
+    console.log('📊 Batch settings:', this.batchGeneration.settings);
+
+    const { quality, quantity, category } = this.batchGeneration.settings;
+
+    // Get items to process
+    let itemsToGenerate = [];
+    if (quantity === 'all') {
+      itemsToGenerate = category 
+        ? this.currentItems.filter(item => item.category === category)
+        : [...this.currentItems];
+    } else {
+      const targetCount = parseInt(quantity);
+      const filteredItems = category 
+        ? this.currentItems.filter(item => item.category === category)
+        : [...this.currentItems];
+      
+      // Take the first N items (could be randomized)
+      itemsToGenerate = filteredItems.slice(0, targetCount);
+    }
+
+    console.log('📊 Items to generate:', itemsToGenerate.length);
+    if (itemsToGenerate.length === 0) {
+      console.log('❌ No items to generate');
+      this.showNotification('No items to generate images for', 'warning');
+      return;
+    }
+
+    // Update state
+    this.batchGeneration.isRunning = true;
+    this.batchGeneration.isPaused = false;
+    this.batchGeneration.currentIndex = 0;
+    this.batchGeneration.totalItems = itemsToGenerate.length;
+    this.batchGeneration.results = [];
+    this.batchGeneration.startTime = Date.now();
+
+    // Switch to progress phase
+    document.getElementById('batchSetupPhase').style.display = 'none';
+    document.getElementById('batchProgressPhase').style.display = 'block';
+    document.getElementById('batchResultsPhase').style.display = 'none';
+
+    // Initialize progress UI
+    document.getElementById('progressTotal').textContent = itemsToGenerate.length;
+    document.getElementById('progressCurrent').textContent = '0';
+    document.getElementById('progressFill').style.width = '0%';
+    document.getElementById('progressPercentage').textContent = '0%';
+    document.getElementById('progressThumbnails').innerHTML = '';
+
+    try {
+      console.log('🎯 Starting batch generation for', itemsToGenerate.length, 'items');
+      // Start batch generation
+      const result = await PhotoAPI.batchGenerate(itemsToGenerate, {
+        quality: quality,
+        generateThumbnails: true
+      });
+
+      if (result.success) {
+        console.log('✅ Batch generation completed successfully');
+        this.completeBatchGeneration(result);
+      } else {
+        console.error('❌ Batch generation failed:', result.error);
+        this.showNotification(`Batch generation failed: ${result.error}`, 'error');
+        this.resetBatchGeneration();
+      }
+    } catch (error) {
+      console.error('❌ Batch generation error:', error);
+      this.showNotification('An error occurred during batch generation', 'error');
+      this.resetBatchGeneration();
+    }
+  }
+
+  async pauseBatchGeneration() {
+    console.log('⏸️ Pausing Batch Generation...');
+
+    try {
+      await PhotoAPI.pauseBatchGeneration();
+      this.batchGeneration.isPaused = true;
+
+      // Update UI
+      document.getElementById('pauseBatchBtn').style.display = 'none';
+      document.getElementById('resumeBatchBtn').style.display = 'inline-block';
+
+      this.showNotification('Batch generation paused', 'info');
+    } catch (error) {
+      console.error('❌ Failed to pause batch generation:', error);
+      this.showNotification('Failed to pause generation', 'error');
+    }
+  }
+
+  async resumeBatchGeneration() {
+    console.log('▶️ Resuming Batch Generation...');
+
+    try {
+      await PhotoAPI.resumeBatchGeneration();
+      this.batchGeneration.isPaused = false;
+
+      // Update UI
+      document.getElementById('pauseBatchBtn').style.display = 'inline-block';
+      document.getElementById('resumeBatchBtn').style.display = 'none';
+
+      this.showNotification('Batch generation resumed', 'info');
+    } catch (error) {
+      console.error('❌ Failed to resume batch generation:', error);
+      this.showNotification('Failed to resume generation', 'error');
+    }
+  }
+
+  async cancelBatchGeneration() {
+    console.log('🛑 Cancelling Batch Generation...');
+
+    try {
+      await PhotoAPI.cancelBatchGeneration();
+      this.batchGeneration.isRunning = false;
+      this.batchGeneration.isPaused = false;
+
+      this.showNotification('Batch generation cancelled', 'warning');
+      this.resetBatchGeneration();
+    } catch (error) {
+      console.error('❌ Failed to cancel batch generation:', error);
+      this.showNotification('Failed to cancel generation', 'error');
+    }
+  }
+
+  /**
+   * Set up detailed progress listeners for enhanced progress tracking
+   */
+  setupDetailedProgressListeners() {
+    // Pipeline loading progress
+    PhotoAPI.onPipelineProgress((progress) => {
+      console.log('🔧 Pipeline Progress:', progress);
+      this.updatePipelineProgress({
+        current: progress.current,
+        total: progress.total,
+        percentage: progress.percentage,
+        component: `Component ${progress.current}/${progress.total}`,
+        status: 'Loading pipeline components'
+      });
+    });
+
+    // Generation steps progress
+    PhotoAPI.onGenerationProgress((progress) => {
+      console.log('🎨 Generation Progress:', progress);
+      this.updateGenerationProgress({
+        current: progress.current,
+        total: progress.total,
+        percentage: progress.percentage,
+        step: `Step ${progress.current}/${progress.total}`,
+        status: 'Generating',
+        speed: progress.speed,
+        elapsed: progress.elapsed,
+        remaining: progress.remaining
+      });
+    });
+
+    // Item started
+    PhotoAPI.onItemStarted((data) => {
+      console.log('🚀 Item Started:', data);
+      this.updateCurrentProcessing({
+        name: data.itemName,
+        id: data.itemId
+      }, data.jobId, { startTime: Date.now() });
+    });
+
+    // Item completed
+    PhotoAPI.onItemCompleted((data) => {
+      console.log('✅ Item Completed:', data);
+      if (data.result && data.result.imagePath) {
+        this.addCompletedItem(
+          { name: data.itemName, id: data.itemId },
+          data.result.imagePath
+        );
+      }
+    });
+
+    // Item failed
+    PhotoAPI.onItemFailed((data) => {
+      console.log('❌ Item Failed:', data);
+      this.addFailedItem(data.itemName, data.error);
+    });
+
+    // Model loading
+    PhotoAPI.onModelLoading((data) => {
+      console.log('🤖 Model Loading:', data);
+      const componentElement = document.getElementById('pipelineCurrentComponent');
+      if (componentElement) {
+        componentElement.textContent = `Loading model: ${data.modelName}`;
+      }
+    });
+
+    // Memory usage
+    PhotoAPI.onMemoryUsage((data) => {
+      console.log('🧠 Memory Usage:', data);
+      // Update memory indicator if available
+      const memoryIndicator = document.getElementById('memoryUsage');
+      if (memoryIndicator) {
+        memoryIndicator.textContent = `${data.used.toFixed(1)}GB / ${data.total.toFixed(1)}GB (${data.percentage.toFixed(1)}%)`;
+      }
+    });
+
+    // Generation starting
+    PhotoAPI.onGenerationStarting((data) => {
+      console.log('🎬 Generation Starting:', data);
+      const stepElement = document.getElementById('generationCurrentStep');
+      if (stepElement) {
+        stepElement.textContent = `Starting ${data.quality} generation...`;
+      }
+    });
+
+    // Generation completed
+    PhotoAPI.onGenerationCompleted((data) => {
+      console.log('🎉 Generation Completed:', data);
+      const stepElement = document.getElementById('generationCurrentStep');
+      if (stepElement) {
+        stepElement.textContent = `Completed in ${data.duration}s`;
+      }
+    });
+
+    // Generation errors
+    PhotoAPI.onGenerationError((data) => {
+      console.error('💥 Generation Error:', data);
+      this.showNotification(`Generation error: ${data.message}`, 'error');
+    });
+
+    // Generation logs for debugging
+    PhotoAPI.onGenerationLog((data) => {
+      console.log('📝 Generation Log:', data.message);
+    });
+  }
+
+  updateBatchProgress(progress) {
+    console.log('📈 Batch Progress Update:', progress);
+
+    const { 
+      current, 
+      total, 
+      item, 
+      thumbnail, 
+      eta, 
+      status,
+      pipeline,
+      generation,
+      batch,
+      jobId,
+      timing 
+    } = progress;
+
+    // Update overall progress stats
+    const percentage = Math.round((current / total) * 100);
+    document.getElementById('progressCurrent').textContent = current;
+    document.getElementById('progressTotal').textContent = total;
+
+    // Update pipeline progress if provided
+    if (pipeline) {
+      this.updatePipelineProgress(pipeline);
+    }
+
+    // Update generation progress if provided
+    if (generation) {
+      this.updateGenerationProgress(generation);
+    }
+
+    // Update batch progress if provided
+    if (batch) {
+      this.updateBatchProgressSection(batch);
+    }
+
+    // Update current item processing
+    if (item || jobId || timing) {
+      this.updateCurrentProcessing(item, jobId, timing);
+    }
+
+    // Add to completed items if status is completed
+    if (thumbnail && status === 'completed') {
+      this.addCompletedItem(item, thumbnail);
+    }
+
+    // Update processing statistics
+    this.updateProcessingStats(current, total, timing);
+
+    // Store result (for backward compatibility)
+    if (status) {
+      this.batchGeneration.results.push({
+        item: item,
+        thumbnail: thumbnail,
+        status: status
+      });
+    }
+
+    // Update current index
+    this.batchGeneration.currentIndex = current;
+  }
+
+  updatePipelineProgress(pipeline) {
+    const { current, total, component, status } = pipeline;
+    const percentage = Math.round((current / total) * 100);
+    
+    document.getElementById('pipelineFill').style.width = `${percentage}%`;
+    document.getElementById('pipelinePercentage').textContent = `${percentage}%`;
+    document.getElementById('pipelineStatus').textContent = status || 'Loading...';
+    document.getElementById('pipelineCurrentComponent').textContent = component || 'Initializing...';
+    document.getElementById('pipelineComponentCount').textContent = `${current}/${total}`;
+  }
+
+  updateGenerationProgress(generation) {
+    const { current, total, step, status, speed, elapsed, remaining } = generation;
+    const percentage = Math.round((current / total) * 100);
+    
+    document.getElementById('generationFill').style.width = `${percentage}%`;
+    document.getElementById('generationPercentage').textContent = `${percentage}%`;
+    document.getElementById('generationStatus').textContent = status || 'Generating...';
+    document.getElementById('generationCurrentStep').textContent = step || 'Processing...';
+    document.getElementById('generationStepCount').textContent = `${current}/${total}`;
+    
+    if (speed) {
+      document.getElementById('generationSpeed').textContent = `${speed.toFixed(1)}s/step`;
+    }
+
+    // Update ETA if available
+    if (remaining) {
+      const etaElement = document.getElementById('generationETA');
+      if (etaElement) {
+        etaElement.textContent = `ETA: ${this.formatDuration(remaining * 1000)}`;
+      }
+    }
+  }
+
+  updateBatchProgressSection(batch) {
+    const { completed, total, status } = batch;
+    const percentage = Math.round((completed / total) * 100);
+    
+    document.getElementById('batchFill').style.width = `${percentage}%`;
+    document.getElementById('batchPercentage').textContent = `${percentage}%`;
+    document.getElementById('batchStatus').textContent = status || 'Processing...';
+    document.getElementById('batchJobsCompleted').textContent = `${completed} jobs completed`;
+    document.getElementById('batchJobsTotal').textContent = `${total} total jobs`;
+  }
+
+  updateCurrentProcessing(item, jobId, timing) {
+    if (item) {
+      document.getElementById('currentItemName').textContent = item.name || 'Processing item...';
+      document.getElementById('currentItemDetails').textContent = 
+        item.description || `${item.category || 'Item'} - ${item.color || 'Unknown color'}`;
+    }
+
+    if (jobId) {
+      document.getElementById('currentJobId').textContent = `Job: ${jobId.substring(0, 8)}...`;
+    }
+
+    if (timing) {
+      if (timing.startTime) {
+        const startTime = new Date(timing.startTime);
+        document.getElementById('currentJobStartTime').textContent = 
+          startTime.toLocaleTimeString();
+      }
+      
+      if (timing.elapsed) {
+        document.getElementById('currentJobElapsed').textContent = this.formatDuration(timing.elapsed);
+      }
+      
+      if (timing.eta) {
+        document.getElementById('currentJobETA').textContent = this.formatDuration(timing.eta);
+      }
+    }
+  }
+
+  addCompletedItem(item, thumbnail) {
+    const grid = document.getElementById('completedItemsGrid');
+    const completedCount = grid.children.length + 1;
+    
+    const itemElement = document.createElement('div');
+    itemElement.className = 'completed-item';
+    itemElement.innerHTML = `
+      <img src="${thumbnail}" alt="Generated image">
+      <div class="completion-badge">✓</div>
+      <div class="item-info">${item?.name || 'Generated Item'}</div>
+    `;
+    
+    itemElement.addEventListener('click', () => this.showImageModal(thumbnail));
+    grid.appendChild(itemElement);
+    
+    // Update completed count
+    document.getElementById('completedCount').textContent = `${completedCount} items`;
+    
+    // Scroll to show latest item
+    grid.scrollTop = grid.scrollHeight;
+  }
+
+  addFailedItem(itemName, error) {
+    const grid = document.getElementById('completedItemsGrid');
+    
+    const itemElement = document.createElement('div');
+    itemElement.className = 'completed-item failed-item';
+    itemElement.innerHTML = `
+      <div class="error-placeholder">
+        <div class="error-icon">⚠️</div>
+        <div class="error-text">Failed</div>
+      </div>
+      <div class="completion-badge error">✗</div>
+      <div class="item-info">${itemName || 'Failed Item'}</div>
+    `;
+    
+    itemElement.addEventListener('click', () => {
+      this.showNotification(`Generation failed: ${error}`, 'error');
+    });
+    
+    grid.appendChild(itemElement);
+    
+    // Scroll to show latest item
+    grid.scrollTop = grid.scrollHeight;
+  }
+
+  updateProcessingStats(current, total, timing) {
+    const now = Date.now();
+    const startTime = this.batchGeneration.startTime || now;
+    const totalElapsed = now - startTime;
+    
+    // Update total processing time
+    document.getElementById('totalProcessingTime').textContent = this.formatDuration(totalElapsed);
+    
+    // Update average processing time per item
+    if (current > 0) {
+      const averageTime = totalElapsed / current;
+      document.getElementById('averageProcessingTime').textContent = this.formatDuration(averageTime);
+    }
+    
+    // Update overall ETA
+    if (current > 0 && total > current) {
+      const averageTime = totalElapsed / current;
+      const remainingItems = total - current;
+      const eta = remainingItems * averageTime;
+      document.getElementById('overallETA').textContent = this.formatDuration(eta);
+    }
+    
+    // Update processing speed (items per minute)
+    if (totalElapsed > 0) {
+      const itemsPerMinute = (current / totalElapsed) * 60000;
+      document.getElementById('processingSpeed').textContent = `${itemsPerMinute.toFixed(1)} items/min`;
+    }
+  }
+
+  formatDuration(milliseconds) {
+    if (!milliseconds || milliseconds < 0) return '0s';
+    
+    const seconds = Math.floor(milliseconds / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    
+    if (hours > 0) {
+      return `${hours}h ${minutes % 60}m`;
+    } else if (minutes > 0) {
+      return `${minutes}m ${seconds % 60}s`;
+    } else {
+      return `${seconds}s`;
+    }
+  }
+
+  addProgressThumbnail(thumbnail, status) {
+    const thumbnailsContainer = document.getElementById('progressThumbnails');
+    
+    const thumbnailElement = document.createElement('div');
+    thumbnailElement.className = `progress-thumbnail ${status}`;
+    
+    if (thumbnail) {
+      const img = document.createElement('img');
+      img.src = thumbnail;
+      img.alt = 'Generated image';
+      thumbnailElement.appendChild(img);
+    }
+
+    thumbnailsContainer.appendChild(thumbnailElement);
+
+    // Scroll to show latest thumbnail
+    thumbnailsContainer.scrollTop = thumbnailsContainer.scrollHeight;
+  }
+
+  completeBatchGeneration(result) {
+    console.log('🎉 Batch Generation Complete:', result);
+
+    // Calculate completion stats
+    const endTime = Date.now();
+    const totalTime = endTime - this.batchGeneration.startTime;
+    const successCount = this.batchGeneration.results.filter(r => r.status === 'completed').length;
+    const errorCount = this.batchGeneration.results.filter(r => r.status === 'error').length;
+
+    // Format total time
+    const minutes = Math.floor(totalTime / 60000);
+    const seconds = Math.floor((totalTime % 60000) / 1000);
+    const timeString = minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
+
+    // Update results UI
+    document.getElementById('successCount').textContent = successCount;
+    document.getElementById('errorCount').textContent = errorCount;
+    document.getElementById('totalTime').textContent = timeString;
+
+    // Populate results grid
+    this.populateResultsGrid();
+
+    // Switch to results phase
+    document.getElementById('batchProgressPhase').style.display = 'none';
+    document.getElementById('batchResultsPhase').style.display = 'block';
+
+    // Update state
+    this.batchGeneration.isRunning = false;
+
+    // Show success notification
+    this.showNotification(`Batch generation completed! ${successCount} successful, ${errorCount} errors`, 'success');
+  }
+
+  populateResultsGrid() {
+    const resultsGrid = document.getElementById('resultsGrid');
+    resultsGrid.innerHTML = '';
+
+    this.batchGeneration.results.forEach((result, index) => {
+      const resultElement = document.createElement('div');
+      resultElement.className = `result-item ${result.status}`;
+
+      if (result.thumbnail && result.status === 'completed') {
+        const img = document.createElement('img');
+        img.src = result.thumbnail;
+        img.alt = `Generated image ${index + 1}`;
+        img.addEventListener('click', () => this.showImageModal(result.thumbnail));
+        resultElement.appendChild(img);
+      }
+
+      resultsGrid.appendChild(resultElement);
+    });
+  }
+
+  // Demo function for testing the enhanced progress interface
+  simulateEnhancedProgress() {
+    console.log('🎬 Starting enhanced progress simulation...');
+    
+    // Switch to progress phase
+    document.getElementById('batchSetupPhase').style.display = 'none';
+    document.getElementById('batchProgressPhase').style.display = 'block';
+    
+    this.batchGeneration.startTime = Date.now();
+    let step = 0;
+    
+    const simulationSteps = [
+      // Pipeline loading phase
+      () => this.updatePipelineProgress({ current: 1, total: 7, component: 'Loading tokenizer...', status: 'Initializing' }),
+      () => this.updatePipelineProgress({ current: 3, total: 7, component: 'Loading text encoder...', status: 'Loading' }),
+      () => this.updatePipelineProgress({ current: 5, total: 7, component: 'Loading VAE decoder...', status: 'Loading' }),
+      () => this.updatePipelineProgress({ current: 7, total: 7, component: 'Pipeline ready', status: 'Complete' }),
+      
+      // First item processing
+      () => this.updateCurrentProcessing(
+        { name: 'Blue Cotton T-Shirt', category: 'tops', color: 'blue' },
+        '010d2136-abc123',
+        { startTime: Date.now(), elapsed: 0 }
+      ),
+      () => this.updateGenerationProgress({ current: 5, total: 25, step: 'Denoising step 5', status: 'Generating', speed: 0.8 }),
+      () => this.updateGenerationProgress({ current: 15, total: 25, step: 'Denoising step 15', status: 'Generating', speed: 0.7 }),
+      () => this.updateGenerationProgress({ current: 25, total: 25, step: 'Generation complete', status: 'Complete', speed: 0.7 }),
+      
+      // Complete first item
+      () => {
+        this.addCompletedItem(
+          { name: 'Blue Cotton T-Shirt' },
+          'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iIzMwNzNkYyIvPjx0ZXh0IHg9IjUwIiB5PSI1NSIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjE0IiBmaWxsPSJ3aGl0ZSIgdGV4dC1hbmNob3I9Im1pZGRsZSI+VGVzdDwvdGV4dD48L3N2Zz4='
+        );
+        this.updateBatchProgressSection({ completed: 1, total: 3, status: 'Processing items' });
+      },
+      
+      // Second item
+      () => this.updateCurrentProcessing(
+        { name: 'Black Jeans', category: 'bottoms', color: 'black' },
+        '010d2136-def456',
+        { startTime: Date.now(), elapsed: 2000 }
+      ),
+      () => this.updateGenerationProgress({ current: 10, total: 25, step: 'Denoising step 10', status: 'Generating', speed: 0.6 }),
+      () => this.updateGenerationProgress({ current: 25, total: 25, step: 'Generation complete', status: 'Complete', speed: 0.6 }),
+      
+      // Complete second item
+      () => {
+        this.addCompletedItem(
+          { name: 'Black Jeans' },
+          'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iIzM3NDE1MSIvPjx0ZXh0IHg9IjUwIiB5PSI1NSIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjE0IiBmaWxsPSJ3aGl0ZSIgdGV4dC1hbmNob3I9Im1pZGRsZSI+VGVzdDwvdGV4dD48L3N2Zz4='
+        );
+        this.updateBatchProgressSection({ completed: 2, total: 3, status: 'Processing items' });
+      },
+      
+      // Third item
+      () => this.updateCurrentProcessing(
+        { name: 'White Sneakers', category: 'shoes', color: 'white' },
+        '010d2136-ghi789',
+        { startTime: Date.now(), elapsed: 1500 }
+      ),
+      () => this.updateGenerationProgress({ current: 20, total: 25, step: 'Denoising step 20', status: 'Generating', speed: 0.5 }),
+      () => this.updateGenerationProgress({ current: 25, total: 25, step: 'Generation complete', status: 'Complete', speed: 0.5 }),
+      
+      // Complete third item
+      () => {
+        this.addCompletedItem(
+          { name: 'White Sneakers' },
+          'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2Y4ZmFmYyIgc3Ryb2tlPSIjZTJlOGYwIiBzdHJva2Utd2lkdGg9IjIiLz48dGV4dCB4PSI1MCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzM3NDE1MSIgdGV4dC1hbmNob3I9Im1pZGRsZSI+VGVzdDwvdGV4dD48L3N2Zz4='
+        );
+        this.updateBatchProgressSection({ completed: 3, total: 3, status: 'Complete' });
+      }
+    ];
+    
+    const runStep = () => {
+      if (step < simulationSteps.length) {
+        simulationSteps[step]();
+        step++;
+        setTimeout(runStep, 1000);
+      } else {
+        console.log('🎉 Enhanced progress simulation complete!');
+      }
+    };
+    
+    runStep();
+  }
 }
 
 window.app = null;
@@ -5145,7 +6450,7 @@ document.addEventListener('DOMContentLoaded', () => {
   console.log('✅ StyleAgent app initialized:', !!window.app);
 });
 
-// Add global test function for debugging
+// Add global test functions for debugging
 window.testFileDialog = async () => {
   console.log('🧪 Testing file dialog...');
   try {
@@ -5155,5 +6460,20 @@ window.testFileDialog = async () => {
   } catch (error) {
     console.error('❌ Test error:', error);
     return { success: false, error: error.message };
+  }
+};
+
+// Test the enhanced batch generation progress interface
+window.testEnhancedProgress = () => {
+  console.log('🧪 Testing enhanced progress interface...');
+  if (window.app) {
+    // Open the batch generation modal first
+    window.app.openBatchGenerationModal();
+    // Wait a bit then start simulation
+    setTimeout(() => {
+      window.app.simulateEnhancedProgress();
+    }, 1000);
+  } else {
+    console.error('App not initialized');
   }
 };
