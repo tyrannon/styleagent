@@ -480,7 +480,6 @@ class StyleAgent {
     this.initializeCameraEventListeners();
 
     // Batch Generation Modal
-    this.initializeBatchGenerationModal();
   }
 
   openModal(modalId) {
@@ -739,15 +738,6 @@ class StyleAgent {
     // Initialize clear search button state
     this.updateClearSearchButton();
 
-    // Batch Generation Button
-    const batchGenerateBtn = document.getElementById('batchGenerateBtn');
-    if (batchGenerateBtn) {
-      console.log('✅ Batch generate button found and event listener added');
-      batchGenerateBtn.addEventListener('click', () => {
-        console.log('🔥 BATCH GENERATE BUTTON CLICKED!');
-        this.openBatchGenerationModal();
-      });
-    }
     
     // Add debug functionality
     this.addDebugFunctionality();
@@ -5646,7 +5636,11 @@ class StyleAgent {
     });
 
     cancelBatchBtn.addEventListener('click', () => this.closeBatchGenerationModal());
-    startBatchBtn.addEventListener('click', () => this.startBatchGeneration());
+    startBatchBtn.addEventListener('click', () => {
+      console.log('🔥 START GENERATION BUTTON CLICKED!');
+      console.log('🔍 DEBUG: About to call startBatchGeneration()');
+      this.startBatchGeneration();
+    });
 
     // Progress phase listeners
     pauseBatchBtn.addEventListener('click', () => this.pauseBatchGeneration());
@@ -5668,6 +5662,7 @@ class StyleAgent {
 
   async openBatchGenerationModal() {
     console.log('📸 Opening Batch Generation Modal...');
+    console.log('🔍 DEBUG: Modal opening started');
 
     // Check if photo generation is available
     console.log('🔍 Checking photo availability...');
@@ -5684,11 +5679,14 @@ class StyleAgent {
 
     // Update summary with current wardrobe
     console.log('📊 Current items count:', this.currentItems.length);
+    console.log('🔍 DEBUG: Current items array:', this.currentItems);
+    console.log('🔍 DEBUG: Items without images:', this.currentItems.filter(item => !item.image).length);
     this.updateBatchSummary();
 
     // Open modal
     console.log('🚀 Opening modal...');
     this.openModal('batchGenerationModal');
+    console.log('🔍 DEBUG: Modal opened successfully');
   }
 
   closeBatchGenerationModal() {
@@ -5787,19 +5785,34 @@ class StyleAgent {
 
   updateBatchSummary() {
     console.log('📊 Updating Batch Summary...');
+    console.log('🔍 DEBUG: Batch settings:', this.batchGeneration.settings);
 
     const { quality, quantity, category } = this.batchGeneration.settings;
 
-    // Calculate items to process
+    // Calculate items to process - ONLY items that don't have images yet
     let itemsToProcess = 0;
     if (quantity === 'all') {
       // Filter items by category if specified
       const filteredItems = category 
         ? this.currentItems.filter(item => item.category === category)
         : this.currentItems;
-      itemsToProcess = filteredItems.length;
+      // Only count items that don't have images
+      const itemsWithoutImages = filteredItems.filter(item => !item.image);
+      itemsToProcess = itemsWithoutImages.length;
+      console.log('🔍 DEBUG: Filtered items for processing:', filteredItems.length);
+      console.log('🔍 DEBUG: Items without images:', itemsWithoutImages.length);
+      console.log('🔍 DEBUG: Category filter:', category);
     } else {
-      itemsToProcess = parseInt(quantity);
+      // For fixed quantity, we need to check how many items are actually available
+      const targetCount = parseInt(quantity);
+      const filteredItems = category 
+        ? this.currentItems.filter(item => item.category === category)
+        : this.currentItems;
+      const itemsWithoutImages = filteredItems.filter(item => !item.image);
+      itemsToProcess = Math.min(targetCount, itemsWithoutImages.length);
+      console.log('🔍 DEBUG: Fixed quantity requested:', targetCount);
+      console.log('🔍 DEBUG: Items without images available:', itemsWithoutImages.length);
+      console.log('🔍 DEBUG: Will process:', itemsToProcess);
     }
 
     // Estimate time based on quality
@@ -5827,29 +5840,41 @@ class StyleAgent {
 
   async startBatchGeneration() {
     console.log('🚀 Starting Batch Generation...');
+    console.log('🔍 DEBUG: startBatchGeneration() called successfully');
     console.log('📊 Batch settings:', this.batchGeneration.settings);
+    console.log('🔍 DEBUG: Current items available:', this.currentItems.length);
 
     const { quality, quantity, category } = this.batchGeneration.settings;
 
-    // Get items to process
+    // Get items to process - ONLY items that don't have images yet
     let itemsToGenerate = [];
     if (quantity === 'all') {
-      itemsToGenerate = category 
+      const filteredItems = category 
         ? this.currentItems.filter(item => item.category === category)
         : [...this.currentItems];
+      // Only include items that don't have images
+      itemsToGenerate = filteredItems.filter(item => !item.image);
     } else {
       const targetCount = parseInt(quantity);
       const filteredItems = category 
         ? this.currentItems.filter(item => item.category === category)
         : [...this.currentItems];
       
-      // Take the first N items (could be randomized)
-      itemsToGenerate = filteredItems.slice(0, targetCount);
+      // Only include items that don't have images, then take the first N
+      const itemsWithoutImages = filteredItems.filter(item => !item.image);
+      itemsToGenerate = itemsWithoutImages.slice(0, targetCount);
     }
 
     console.log('📊 Items to generate:', itemsToGenerate.length);
+    console.log('🔍 DEBUG: Items to generate details:', itemsToGenerate.map(item => ({
+      name: item.name,
+      category: item.category,
+      hasImage: !!item.image
+    })));
+    
     if (itemsToGenerate.length === 0) {
       console.log('❌ No items to generate');
+      console.log('🔍 DEBUG: Zero items - showing notification');
       this.showNotification('No items to generate images for', 'warning');
       return;
     }
@@ -5870,21 +5895,29 @@ class StyleAgent {
     // Initialize progress UI
     document.getElementById('progressTotal').textContent = itemsToGenerate.length;
     document.getElementById('progressCurrent').textContent = '0';
-    document.getElementById('progressFill').style.width = '0%';
-    document.getElementById('progressPercentage').textContent = '0%';
-    document.getElementById('progressThumbnails').innerHTML = '';
+    document.getElementById('batchFill').style.width = '0%';
+    document.getElementById('batchPercentage').textContent = '0%';
+    document.getElementById('completedItemsGrid').innerHTML = '';
 
     try {
       console.log('🎯 Starting batch generation for', itemsToGenerate.length, 'items');
+      console.log('🔍 DEBUG: About to call PhotoAPI.batchGenerate()');
+      console.log('🔍 DEBUG: PhotoAPI available:', typeof PhotoAPI, Object.keys(PhotoAPI));
+      console.log('🔍 DEBUG: Items being sent:', itemsToGenerate.map(item => ({ id: item.id, name: item.name })));
+      
       // Start batch generation
+      console.log('🔍 DEBUG: Calling PhotoAPI.batchGenerate with options:', { quality, generateThumbnails: true });
       const result = await PhotoAPI.batchGenerate(itemsToGenerate, {
         quality: quality,
         generateThumbnails: true
       });
+      
+      console.log('🔍 DEBUG: PhotoAPI.batchGenerate() returned:', result);
 
       if (result.success) {
-        console.log('✅ Batch generation completed successfully');
-        this.completeBatchGeneration(result);
+        console.log('✅ Batch generation started successfully');
+        console.log('🔍 DEBUG: Batch started, waiting for progress events...');
+        // Don't complete here - wait for progress events to finish
       } else {
         console.error('❌ Batch generation failed:', result.error);
         this.showNotification(`Batch generation failed: ${result.error}`, 'error');
@@ -6116,6 +6149,17 @@ class StyleAgent {
 
     // Update current index
     this.batchGeneration.currentIndex = current;
+    
+    // Check for batch completion
+    if (batch && batch.isComplete === true) {
+      console.log('🎉 Batch detected as complete, calling completeBatchGeneration...');
+      this.completeBatchGeneration({
+        success: true,
+        totalJobs: batch.totalJobs,
+        completedJobs: batch.completedJobs,
+        failedJobs: batch.failedJobs
+      });
+    }
   }
 
   updatePipelineProgress(pipeline) {
